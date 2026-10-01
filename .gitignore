@@ -1,0 +1,33 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment variables & secrets
+.env
+.env.local
+*.key
+*.pem
+
+# IDE & Editor settings
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local runtime logs and scratch files
+*.log
+runs/state.json.bak
+scratch/
+
+# Keep runs directory structure tracked
+!runs/
+!runs/.gitkeep
