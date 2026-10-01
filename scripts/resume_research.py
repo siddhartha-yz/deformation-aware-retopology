@@ -42,6 +42,10 @@ TARGET_REPORT_FILES = [
     "novelty_report.md",
     "dataset_report.md",
     "phase0_report.md",
+    "phase1_math_spec.md",
+    "synthetic_benchmarks.py",
+    "toy_flow_sampler.py",
+    "phase1_report.md",
 ]
 
 
