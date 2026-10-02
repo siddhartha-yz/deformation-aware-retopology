@@ -6,17 +6,8 @@ Phase 3: Scaling, Kinematic Conditioning & Production Retopology
 Project Code: MESH-FLOW-RETOPOLOGY
 
 Target DCC: Blender 4.x / 5.x Python API (bpy)
-Provides:
-1. bl_info registration metadata
-2. FlowRetopoProperties (PropertyGroup) for user-configurable retopology parameters
-3. VIEW_3D Sidebar Panel (RetopoFlow-AI)
-4. FLOWRETOPO_OT_generate Operator:
-   - Scans active high-poly target mesh
-   - Discovers scene Armature / Kinematic Joint hierarchy
-   - Executes Flow Matching ODE integration (Euler, Midpoint, Heun)
-   - Generates production quad mesh in Blender scene
-   - Auto-binds skinning vertex groups
-   - Reports Quad Ratio (Q_%) and Valence-4 ratio (V_4%)
+The operator builds a regular quad cylinder from the target bounding box.
+It does not load FlowRetopoDiT. Skinning weights are a distance softmax over joints.
 5. Self-Contained Standalone Test Harness (runs outside Blender via MockBpy)
 """
 
@@ -26,9 +17,9 @@ bl_info = {
     "version": (1, 0, 0),
     "blender": (4, 0, 0),
     "location": "View3D > Sidebar > RetopoFlow-AI",
-    "description": "Continuous Flow Matching quad retopology conditioned on high-res geometry and kinematic skeleton deformation strain",
-    "warning": "",
-    "doc_url": "https://github.com/generative-retopo/flow-matching-retopo",
+    "description": "Analytic cylinder quad lattice from the mesh bounding box. Not a trained flow-matching model.",
+    "warning": "Builds a bounding-box cylinder. Does not run the DiT.",
+    "doc_url": "https://github.com/siddhartha-yz/deformation-aware-retopology",
     "category": "Mesh",
 }
 
@@ -61,9 +52,8 @@ except ImportError:
 
 class RetopoInferenceEngine:
     """
-    Lightweight, production-ready inference engine for Blender.
-    Executes parallel continuous flow matching to generate quad meshes
-    aligned to surface geometry and kinematic strain.
+    Builds a regular quad cylinder inside the target bounding box and
+    integrates the closed-form field s_1 - s_0. Not a neural retopology model.
     """
     @staticmethod
     def extract_armature_joints(armature_obj: Any) -> Tuple[np.ndarray, List[str], List[int]]:
@@ -389,7 +379,7 @@ if RUNNING_IN_BLENDER:
             box_res.prop(props, "radial_segments")
             
             box_ode = layout.box()
-            box_ode.label(text="Flow Matching ODE Solver", icon='AUTO')
+            box_ode.label(text="Analytic cylinder lattice", icon='MESH_DATA')
             box_ode.prop(props, "solver_type")
             box_ode.prop(props, "ode_steps")
             box_ode.prop(props, "lambda_strain", text="Strain Alignment λ")
@@ -478,7 +468,7 @@ def run_standalone_addon_test():
     print(f"  Sampled High-Poly Surface Points: {high_pts.shape}")
     print(f"  Extracted Kinematic Skeleton:     {len(joints)} joints: {joint_names}")
     
-    print("\n[STEP 3] Running Parallel Flow Matching Retopology Solver (Midpoint 2nd-Order)...")
+    print("\n[STEP 3] Building analytic cylinder lattice...")
     t0 = time.perf_counter()
     verts, quads, weights = RetopoInferenceEngine.generate_quad_topology(
         target_pts=high_pts,
