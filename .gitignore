@@ -28,6 +28,10 @@ env/
 runs/state.json.bak
 scratch/
 
+# Checkpoints
+checkpoints/
+*.pt
+
 # Keep runs directory structure tracked
 !runs/
 !runs/.gitkeep
