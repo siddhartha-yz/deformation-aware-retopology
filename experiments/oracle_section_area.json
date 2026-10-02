@@ -1,0 +1,13 @@
+{
+  "seed": 0,
+  "radius": 0.4,
+  "height": 2.0,
+  "target_edge": 0.08,
+  "skin_delta": 0.15,
+  "sensitivity_delta": 0.05,
+  "sensitivity_if_relative_gap_below": 0.02,
+  "angles_deg": [0, 45, 90, 120],
+  "decision_angles_deg": [90, 120],
+  "rest_area_ratio_min": 0.98,
+  "decision_rule": "Revised after the absolute-area run. That run labeled MECHANISM on a gap of about 0.5 percent that was already present at 0 degrees, and skinning width did not change the area. The claim is now retention: section area divided by that mesh's own 0-degree section area. MECHANISM only if aligned retention exceeds diagonal retention by at least sensitivity_if_relative_gap_below at every decision angle. Otherwise NOT_SUPPORTED. Both 0-degree sections must still be at least rest_area_ratio_min times pi*r^2. The closed form for a 50-50 blend of a joint ring is cos(angle/2)."
+}

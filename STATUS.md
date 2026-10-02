@@ -30,7 +30,7 @@ Three pieces exist, and they are not connected.
 
 PolyFlow (arXiv:2606.30673) already generates meshes by flow matching on continuous per-vertex position, normal, and topology embeddings. The open question for this repository is whether **kinematic conditioning** (skeleton, skinning, deformation strain) improves quad edge flow at articulations beyond curvature-only quadrangulation. That question has not been measured here.
 
-A later experiment has to put the trained velocity field on the inference path, compare with a real autoregressive mesh model or drop that baseline, and write the conclusion from the run log.
+The section-area test below measures that geometric premise directly. It does not support extra pinching from 45° edges under this skinning model.
 
 ## Oracle edge orientation
 
@@ -42,10 +42,26 @@ Vertex-radius ratio is identical for the two topologies. It does not measure edg
 
 A first hinge construction sheared the surface in a direction the bend does not stretch. Its Dirichlet did not move. That log is `runs/oracle_edge_orientation/null_hinge_instrument.md`.
 
+## Oracle material section
+
+`experiments/oracle_section_area.py` bends one cylinder with Linear Blend Skinning. Axis-aligned quads and 45° quads use the same radius, height, and edge length (about 0.08). The measured loop is the material that lay on `z = 0` at rest.
+
+An absolute-area comparison labeled `MECHANISM` because the aligned area was about 0.5% larger at 90° and 120°. That gap is already present at 0° (0.4992 versus 0.4967), and it is the faceting of the rest surface. Changing the skinning width from 0.15 to 0.05 translates the loop and leaves its area unchanged. That log is `runs/oracle_section_area/absolute_area_rule.md`.
+
+Retention, area divided by the same mesh at 0°, matches `cos(angle/2)` for both topologies:
+
+| Angle | Aligned retention | Diagonal retention | `cos(angle/2)` |
+| ---: | ---: | ---: | ---: |
+| 45° | 0.9239 | 0.9239 | 0.9239 |
+| 90° | 0.7071 | 0.7071 | 0.7071 |
+| 120° | 0.5000 | 0.5000 | 0.5000 |
+
+**Verdict: `NOT_SUPPORTED`.** Under this skinning model the joint loop is a 50-50 bone blend. Its area shrinks by `cos(angle/2)` whether the edges are rings or 45° diagonals. Edge direction does not add candy-wrapper pinching to this loop.
+
 ## Decision
 
 ```text
 NO-GO
 ```
 
-The published neural comparison remains withdrawn. The cheaper mechanism test above also failed its pre-registered rule. A later model is not justified until an oracle edge field beats a curvature field on a metric that can see the difference, at matched element size.
+The published neural comparison remains withdrawn. The geometric premise that 45° edges pinch a skinned cylinder more than ring edges is not supported for the material joint section. A learned retopology model is not justified by that premise until a deformation model is named in which edge direction changes the section.

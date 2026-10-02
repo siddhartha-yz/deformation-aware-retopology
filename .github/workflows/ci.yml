@@ -46,6 +46,9 @@ jobs:
       - name: Oracle edge-orientation test
         run: python experiments/oracle_edge_orientation.py
 
+      - name: Oracle material-section test
+        run: python experiments/oracle_section_area.py
+
       - name: Run Unified Pipeline Demo Mode
         run: |
           python run_pipeline.py --mode demo --archetype planar_hinge --steps 5
