@@ -1,0 +1,58 @@
+name: CI - Deformation-Aware Mesh Retopology
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Build, Lint & Benchmark Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Syntax and Bytecode Compilation Check
+        run: |
+          python -m py_compile run_pipeline.py render_figures.py scripts/package_addon.py scripts/generate_demo_gif.py blender_addon/__init__.py
+
+      - name: Verify Blender Add-on Standalone Engine
+        run: |
+          python blender_addon/__init__.py
+
+      - name: Package Blender Add-on and Verify Checksum
+        run: |
+          python scripts/package_addon.py
+          test -f release/retopo_flow_blender_addon_v1.0.0.zip
+          test -f release/SHA256SUMS.txt
+
+      - name: Run Unified Pipeline Demo Mode
+        run: |
+          python run_pipeline.py --mode demo --archetype planar_hinge --steps 5
+
+      - name: Run Pipeline Kinetic Benchmark Matrix
+        run: |
+          python run_pipeline.py --mode benchmark
+
+      - name: Verify Generated Production Meshes
+        run: |
+          test -f output/planar_hinge_flow_retopo.obj
+          test -f output/cylindrical_joint_flow_retopo.obj
+          test -f output/humanoid_smplx_flow_retopo.obj
