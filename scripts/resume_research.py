@@ -46,6 +46,10 @@ TARGET_REPORT_FILES = [
     "synthetic_benchmarks.py",
     "toy_flow_sampler.py",
     "phase1_report.md",
+    "flow_retopo_model.py",
+    "sampler_ablation.py",
+    "baseline_comparison.py",
+    "phase2_report.md",
 ]
 
 
@@ -185,13 +189,26 @@ def poll_interaction(
             logger.error(f"Polling timed out after {timeout} seconds.")
             return
 
+        interaction = None
+        current_status = "in_progress"
+
         try:
             interaction = client.interactions.get(id=interaction_id)
             current_status = getattr(interaction, "status", "unknown")
         except Exception as e:
-            logger.warning(f"Error querying interaction status: {e}. Retrying in {poll_interval}s...")
-            time.sleep(poll_interval)
-            continue
+            logger.debug(f"Querying interaction returned: {e}. Checking environment files...")
+
+        # Also probe environments.files directly for completion
+        if environment_id and hasattr(client, "environments") and hasattr(client.environments, "files"):
+            try:
+                env_files = client.environments.files.list(environment=environment_id, path="")
+                file_names = [getattr(f, "name", "") for f in getattr(env_files, "files", [])]
+                phase2_targets = ["flow_retopo_model.py", "sampler_ablation.py", "baseline_comparison.py", "phase2_report.md"]
+                if all(req in file_names for req in phase2_targets):
+                    logger.info("All Phase 2 target artifacts detected in remote sandbox!")
+                    current_status = "completed"
+            except Exception as e:
+                logger.debug(f"Environments files check: {e}")
 
         if current_status != last_status:
             logger.info(f"Interaction status: {current_status}")
