@@ -1,52 +1,9 @@
-# Paper Manuscript: Deformation-Aware Mesh Retopology via Parallel Continuous Flow Matching
+# Paper draft
 
-This directory contains the complete publication-grade LaTeX manuscript formatted for **ACM SIGGRAPH / ACM Transactions on Graphics (TOG)**.
+`main.tex` is a formulation draft. The numerical SOTA claims are withdrawn. See the status quote after `\maketitle` and the repository `STATUS.md`.
 
----
+`tables/table1_sota.tex` keeps the first-pass numbers with corrected row names: C++ QuadriFlow, an autoregressive drift surrogate, and an analytic cylinder lattice. It is not a comparison against MeshGPT or against `FlowRetopoDiT`.
 
-## Directory Structure
+`references.bib` was corrected for venue and authorship on QuadriFlow, MeshGPT, PolyGen, Flow Matching, and RigNet. PolyFlow (arXiv:2606.30673) is included because it already covers continuous flow matching for mesh topology.
 
-```
-paper/
-├── main.tex                  # Primary LaTeX paper manuscript
-├── references.bib            # Full verified BibTeX bibliography
-├── tables/
-│   └── table1_sota.tex       # Table 1: Real-world SOTA benchmark comparison
-└── README.md                 # Compilation and submission guide
-```
-
----
-
-## How to Compile
-
-### Option 1: Overleaf (One-Click)
-1. Zip the entire `paper/` directory:
-   ```bash
-   zip -r paper_manuscript.zip paper/
-   ```
-2. Go to [Overleaf](https://www.overleaf.com), click **New Project > Upload Project**, and select `paper_manuscript.zip`.
-3. Set compiler to **pdfLaTeX** or **XeLaTeX**, and click **Recompile**.
-
-### Option 2: Local Command Line (Linux / macOS)
-If `latexmk` or `pdflatex` is installed on your workstation:
-```bash
-cd paper
-latexmk -pdf -bibtex main.tex
-```
-Or manually:
-```bash
-pdflatex main.tex
-bibtex main
-pdflatex main.tex
-pdflatex main.tex
-```
-
----
-
-## Benchmark Source Data
-All quantitative values reported in `table1_sota.tex` are directly reproducible by executing:
-```bash
-# Run real SOTA benchmark against authentic C++ QuadriFlow and MeshGPT
-python test_sota_apose_character.py
-```
-Generated 3D meshes (`.obj`) are automatically written to `output/`.
+Compile with `latexmk -pdf -bibtex main.tex` from this directory when a TeX installation is available.

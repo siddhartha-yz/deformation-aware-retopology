@@ -1,9 +1,12 @@
 \begin{table*}[t]
 \centering
 \small
-\caption{\textbf{Quantitative Benchmark across Realistic Organic Human Assets under Extreme Kinematic Flexion.} 
-Comparison of our Deformation-Aware Continuous Flow Matching Retopology framework against the authentic C++ QuadriFlow baseline \cite{huang2018quadriflow} and deep autoregressive mesh generation \cite{siddiqui2024meshgpt}. 
-Our method demonstrates consistent superiority in surface geometric fidelity ($CD$, $HD_{95}$), regular valence-4 purity ($V_{4\%}$), conformal Dirichlet deformation preservation ($E_D$), and parallel inference latency (achieving over $200\times$ speedup over QuadriFlow).}
+\caption{\textbf{Archival log, not a result.}
+QuadriFlow is the C++ solver \cite{huang2018quadriflow}.
+The row named below as a surrogate is a Gaussian drift on a cylinder, not MeshGPT \cite{siddiqui2024meshgpt}.
+The lattice row is an analytic quad cylinder, not a trained flow-matching model.
+Volume retention of the lattice is lower than QuadriFlow on the arm and leg rows.
+Quad ratio of the lattice is 100\% because every emitted face is a quad.}
 \label{tab:sota_benchmark}
 \begin{tabular}{llccccccc}
 \toprule
@@ -11,23 +14,23 @@ Our method demonstrates consistent superiority in surface geometric fidelity ($C
 \midrule
 \multirow{3}{*}{\shortstack[l]{\textbf{A-Pose Human Arm}\\(45$^\circ$ Coronal Tilt, 90$^\circ$ Flexion)}} 
 & QuadriFlow (Real C++) \cite{huang2018quadriflow} & 100.0\% & 95.9\% & 6.058 & 83.69 & 0.1376 & 0.706 & 1461.3 \\
-& MeshGPT (Autoregressive) \cite{siddiqui2024meshgpt} & 94.6\% & 94.4\% & 13.462 & 92.42 & 0.1120 & 0.708 & 1260.1 \\
-& \textbf{Ours (Deformation Flow)} & \textbf{100.0\%} & \textbf{100.0\%} & \textbf{2.847} & \textbf{81.27} & \textbf{0.1068} & \textbf{0.664} & \textbf{6.7} \\
+& AR surrogate (not MeshGPT) & 94.6\% & 94.4\% & 13.462 & 92.42 & 0.1120 & 0.708 & 1260.1 \\
+& Analytic cylinder lattice & 100.0\% & 100.0\% & 2.847 & 81.27 & 0.1068 & 0.664 & 6.7 \\
 \midrule
 \multirow{3}{*}{\shortstack[l]{\textbf{A-Pose Human Arm}\\(45$^\circ$ Coronal Tilt, 120$^\circ$ Deep Flexion)}} 
 & QuadriFlow (Real C++) \cite{huang2018quadriflow} & 100.0\% & 95.9\% & 6.058 & 83.69 & 0.2134 & 0.516 & 1563.1 \\
-& MeshGPT (Autoregressive) \cite{siddiqui2024meshgpt} & 95.8\% & 95.9\% & 16.523 & 94.15 & 0.1612 & 0.529 & 1260.5 \\
-& \textbf{Ours (Deformation Flow)} & \textbf{100.0\%} & \textbf{100.0\%} & \textbf{2.847} & \textbf{81.27} & \textbf{0.1591} & \textbf{0.482} & \textbf{6.3} \\
+& AR surrogate (not MeshGPT) & 95.8\% & 95.9\% & 16.523 & 94.15 & 0.1612 & 0.529 & 1260.5 \\
+& Analytic cylinder lattice & 100.0\% & 100.0\% & 2.847 & 81.27 & 0.1591 & 0.482 & 6.3 \\
 \midrule
 \multirow{3}{*}{\shortstack[l]{\textbf{Realistic Human Leg}\\(Stance, 90$^\circ$ Knee Flexion)}} 
 & QuadriFlow (Real C++) \cite{huang2018quadriflow} & 100.0\% & 95.4\% & 5.070 & 82.50 & 0.1858 & 0.692 & 390.6 \\
-& MeshGPT (Autoregressive) \cite{siddiqui2024meshgpt} & 94.6\% & 94.4\% & 26.808 & 96.80 & 0.1399 & 0.698 & 1258.8 \\
-& \textbf{Ours (Deformation Flow)} & \textbf{100.0\%} & \textbf{100.0\%} & \textbf{4.511} & \textbf{78.90} & \textbf{0.1294} & \textbf{0.679} & \textbf{5.9} \\
+& AR surrogate (not MeshGPT) & 94.6\% & 94.4\% & 26.808 & 96.80 & 0.1399 & 0.698 & 1258.8 \\
+& Analytic cylinder lattice & 100.0\% & 100.0\% & 4.511 & 78.90 & 0.1294 & 0.679 & 5.9 \\
 \midrule
 \multirow{3}{*}{\shortstack[l]{\textbf{Articulated Joint}\\(Canonical Elbow/Knee)}} 
 & QuadriFlow (Real C++) \cite{huang2018quadriflow} & 100.0\% & 96.3\% & 5.563 & 83.69 & 0.0285 & 0.655 & 170.9 \\
-& MeshGPT (Autoregressive) \cite{siddiqui2024meshgpt} & 94.9\% & 94.5\% & 5.413 & 92.42 & 0.0190 & 0.653 & 895.2 \\
-& \textbf{Ours (Deformation Flow)} & \textbf{100.0\%} & \textbf{100.0\%} & \textbf{3.414} & \textbf{81.27} & \textbf{0.0312} & \textbf{0.649} & \textbf{1.4} \\
+& AR surrogate (not MeshGPT) & 94.9\% & 94.5\% & 5.413 & 92.42 & 0.0190 & 0.653 & 895.2 \\
+& Analytic cylinder lattice & 100.0\% & 100.0\% & 3.414 & 81.27 & 0.0312 & 0.649 & 1.4 \\
 \bottomrule
 \end{tabular}
 \end{table*}

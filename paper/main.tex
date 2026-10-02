@@ -11,18 +11,12 @@
 
 \title{Kinematic Flow Matching: Deformation-Aware Quad Retopology for Articulated Characters}
 
-\author{Lead Research Scientist}
+\author{Zhi Yang}
 \affiliation{%
-  \institution{Autonomous 3D Geometry Laboratory}
-  \country{Global}
+  \institution{Independent}
+  \country{}
 }
-\email{research@mesh-flow-retopology.org}
-
-\author{Generative Modeling Architect}
-\affiliation{%
-  \institution{Autonomous 3D Geometry Laboratory}
-  \country{Global}
-}
+\email{64243438+siddhartha-yz@users.noreply.github.com}
 
 \begin{abstract}
 Automated quadrilateral mesh retopology is essential for transforming high-density 3D digital assets into production-ready character models for animation and real-time graphics. However, existing automated retopology pipelines exhibit a fundamental geometric limitation: classical field-aligned parameterization algorithms (e.g., QuadriFlow, Instant Meshes) orient quad edge flows strictly according to extrinsic static surface curvature. Because they possess zero awareness of skeletal articulation axes, edge loops cut diagonally across flexion zones, resulting in severe cross-sectional volume loss (``candy-wrapper'' pinching) when animated via Linear Blend Skinning (LBS). Conversely, deep autoregressive mesh generators (e.g., PolyGen, MeshGPT) suffer from quadratic latency $\mathcal{O}(N^2)$, exposure bias, and topological seam tearing on closed cyclic loops.
@@ -30,12 +24,20 @@ Automated quadrilateral mesh retopology is essential for transforming high-densi
 In this work, we present \textbf{Kinematic Flow Matching}, a parallel generative framework for deformation-aware quad retopology. We formulate production quad mesh synthesis as an optimal transport continuous probability flow operating over multi-modal continuous state tokens $\mathbf{s}_i(t) = [\mathbf{p}_i(t), \mathbf{n}_i(t), \mathbf{z}_i(t)] \in \mathbb{R}^{3 + 3 + D_z}$ conditioned on both dense surface geometry $\mathcal{M}_{\text{high}}$ and skeletal kinematic hierarchies $\mathcal{J}$. 
 To ensure physical articulation readiness, we introduce a \textbf{4-RoSy Kinematic Strain Regularizer} $\Phi_{\text{strain}}(\hat{\mathbf{e}}, \mathbf{v}_1, \mathbf{v}_2) = \sin^2(2\theta)$ derived from the right Cauchy-Green deformation strain tensor $\mathbf{C} = \mathbf{F}^T \mathbf{F}$. This penalty acts as an irregular-valence repellent in high-strain flexion bands, enforcing that articulating limbs maintain regular valence-4 cylindrical loops while routing the topological singularities mandated by the Poincaré-Hopf theorem into minimal-strain saddle regions (such as axillae).
 
-Extensive empirical evaluations against the authentic C++ QuadriFlow baseline on realistic organic character assets in A-pose demonstrate that our approach: (1) reduces Dirichlet conformal deformation distortion by $22.4\% \sim 30.4\%$ under extreme $90^\circ$ and $120^\circ$ flexions; (2) improves surface Chamfer accuracy by over $53.0\%$ ($2.847\text{ mm}$ vs. $6.058\text{ mm}$); (3) eliminates irregular singularities from active limb segments; and (4) accelerates quad synthesis to under $7.0\text{ ms}$, achieving a $> 200\times$ speedup over classical parameterization. We also provide a production Blender 4.x/5.x add-on with one-click armature detection and vertex group skinning assignment.
+A DiT trainer and a 4-RoSy strain loss are implemented on synthetic cylinders. The numerical comparison previously circulated against QuadriFlow and MeshGPT is withdrawn: the measured ``ours'' path is an analytic cylinder lattice, and the autoregressive row is a drift surrogate rather than MeshGPT. The kinematic-conditioning question remains open.
 \end{abstract}
 
 \begin{document}
 
 \maketitle
+
+\begin{quote}
+\noindent\textbf{Status (2026-10-03).}
+The quantitative claims previously stated in the abstract, Table~\ref{tab:sota_benchmark}, and Section~\ref{sec:experiments} are withdrawn.
+Those numbers compare an analytic cylinder lattice and an autoregressive drift surrogate with C++ QuadriFlow.
+They were not produced by a trained DiT, and they do not include MeshGPT.
+This file is a formulation draft. The repository verdict is NO-GO on the empirical claim.
+\end{quote}
 
 \section{Introduction}
 Modern 3D digital content creation pipelines generate surface geometry through high-density digital sculpting, multi-view photogrammetry, or neural reconstruction (3D Gaussian Splats, NeRFs). Before these dense meshes can be rigged and animated in production engines (e.g., Maya, Blender, Unreal Engine), they must undergo \emph{retopology}---constructing a clean, lightweight quad-dominant mesh whose edge loops actively conform to deformation axes.
@@ -61,8 +63,7 @@ Our primary contributions are:
 \begin{enumerate}
     \item \textbf{Physical 4-RoSy Strain Regularizer}: We derive an exact potential function $\Phi_{\text{strain}}(\hat{\mathbf{e}}, \mathbf{v}_1, \mathbf{v}_2) = \sin^2(2\theta)$ from the right Cauchy-Green deformation strain tensor $\mathbf{C} = \mathbf{F}^T \mathbf{F}$, compelling edge loops to align orthogonally with joint rotation and contraction axes.
     \item \textbf{Kinematic Singularity Routing}: In accordance with the Poincaré-Hopf index theorem, our formulation guarantees that high-strain articulation bands remain pure valence-4 regular cylinders, routing unavoidable topological singularities into low-strain saddle transition areas (e.g., axillae).
-    \item \textbf{Rigorous Benchmark against Real C++ Baselines}: Head-to-head empirical validation against the authentic C++ QuadriFlow \cite{huang2018quadriflow} and MeshGPT on organic character assets under extreme $90^\circ$ and $120^\circ$ flexions, demonstrating reduced Dirichlet distortion, improved Chamfer accuracy, and a $> 200\times$ inference speedup.
-    \item \textbf{Production DCC Tooling}: A native Blender 4.x/5.x add-on providing interactive sub-10ms retopology with automated vertex group skinning transfer.
+    \item \textbf{Benchmark status}: A head-to-head against the trained model and against MeshGPT has not been run. The archival table compares QuadriFlow with an analytic lattice and a drift surrogate.
 \end{enumerate}
 
 \section{Related Work}
@@ -71,12 +72,13 @@ Our primary contributions are:
 Quad meshing has traditionally relied on cross-field design and global parameterization \cite{bommes2009mixed}. Jakob et al. \cite{jakob2015instant} introduced field-aligned surface smoothing using local orientation fields. Huang et al. \cite{huang2018quadriflow} advanced this by casting singular point allocation as a minimum-cost network flow problem to prevent non-manifold configurations. While robust on static geometry, these methods lack kinematic priors, causing severe distortion under dynamic animation.
 
 \subsection{Deep Learned Retopology}
-PolyGen \cite{nash2020polygen} pioneered sequential autoregressive mesh generation. Siddiqui et al. \cite{siddiqui2024meshgpt} introduced MeshGPT using quantized triangle codebooks. QuadGPT \cite{siddiqui2024meshgpt} explored reinforcement learning to refine quad connectivity. Neural Dual Contouring \cite{chen2022neural} predicts dual vertices from signed distance functions. However, none of these models incorporate skeletal kinematics or deformation strain gradients.
+PolyGen \cite{nash2020polygen} pioneered sequential autoregressive mesh generation. Siddiqui et al. \cite{siddiqui2024meshgpt} introduced MeshGPT using quantized triangle codebooks. Wang et al. \cite{wang2026polyflow} already apply Transformer flow matching to continuous per-vertex position, normal, and topology embeddings. Those models do not condition edge flow on a skeletal strain tensor. That remaining question is not answered by the withdrawn table.
 
 \subsection{Flow Matching on Geometric Graphs}
 Flow Matching \cite{lipman2023flow,albergo2023building} generates continuous probability paths through linear displacement vector fields $\mathbf{u}_t = \mathbf{s}_1 - \mathbf{s}_0$. By leveraging parallel Runge-Kutta numerical integration (e.g., 2nd-order Midpoint), complete topologies can be synthesized in a fixed, small number of ODE steps ($N_{\text{steps}} \in [10, 15]$), enabling interactive generation.
 
 \section{Methodology}
+\label{sec:method}
 
 \subsection{Multi-Modal Continuous State Formulation}
 We represent the retopology state of $N$ vertices as continuous state tokens:
@@ -126,28 +128,22 @@ Under our framework, because irregular vertices induce angular deficits that dis
 
 \input{tables/table1_sota}
 
-\section{Experiments & Empirical Evaluation}
+\section{Experiments \& Empirical Evaluation}
+\label{sec:experiments}
 
-\subsection{Benchmark Protocol}
-We benchmark our framework against:
+\subsection{What Table~\ref{tab:sota_benchmark} records}
+The table is an archival log from the first pass. It does not evaluate Section~\ref{sec:method}.
 \begin{itemize}
-    \item \textbf{QuadriFlow (Authentic C++)} \cite{huang2018quadriflow}: Official implementation with minimum-cost network flow singularity allocation.
-    \item \textbf{MeshGPT} \cite{siddiqui2024meshgpt}: Deep sequence-to-sequence autoregressive generation with accumulated exposure bias.
-    \item \textbf{Ours (Kinematic Flow)}: Our complete multi-modal DiT backbone solved via 2nd-order Midpoint ODE integration ($N_{\text{steps}} = 10$).
+    \item \textbf{QuadriFlow} \cite{huang2018quadriflow}: C++ solver, when \texttt{pyQuadriFlow} is installed.
+    \item \textbf{AR surrogate}: a cylinder with accumulated Gaussian drift and a padded timer. MeshGPT weights are not loaded.
+    \item \textbf{Analytic cylinder lattice}: a regular quad cylinder, optionally snapped toward the input surface. \texttt{FlowRetopoDiT} is not called.
 \end{itemize}
 
-Evaluations are conducted on realistic, non-axis-aligned organic character limbs in A-pose ($45^\circ$ coronal tilt) under extreme joint flexions ($90^\circ$ and $120^\circ$ deep flexion).
-
-\subsection{Results & Discussion}
-As detailed in Table~\ref{tab:sota_benchmark}:
-\begin{enumerate}
-    \item \textbf{Geometric Surface Fidelity}: On the A-pose human arm, our method achieves a surface Chamfer distance of \textbf{2.847 mm}, improving upon QuadriFlow (6.058 mm) by \textbf{53.0\%} and MeshGPT (13.462 mm) by \textbf{78.8\%}.
-    \item \textbf{Conformal Dirichlet Distortion}: Under deep $120^\circ$ elbow flexion, QuadriFlow exhibits severe edge shear ($E_D = 0.2134$) due to static curvature misalignment. Our kinematic strain regularizer reduces Dirichlet distortion by \textbf{25.4\%} ($E_D = 0.1591$), and reduces knee flexion distortion by \textbf{30.4\%} ($0.1294$ vs. $0.1858$).
-    \item \textbf{Inference Latency}: Our parallel ODE solver executes in \textbf{5.9 ~ 6.7 ms}, delivering an extraordinary \textbf{> 200x speedup} over QuadriFlow (1461.3 ms) and \textbf{> 180x speedup} over autoregressive generation (1260.1 ms).
-\end{enumerate}
+\subsection{What the log does and does not show}
+On the recorded arm and leg rows, Dirichlet energy of the lattice is lower than QuadriFlow, and joint volume retention is lower as well. Lower Dirichlet in this log is not evidence for the strain regularizer, because that regularizer was not on this path. Quad ratio and valence-4 ratio of the lattice are 100\% by construction. Wall-clock gaps compare grid construction with QuadriFlow and with the surrogate timer.
 
 \section{Conclusion}
-We have presented Kinematic Flow Matching, a deformation-aware quad retopology framework that couples optimal transport continuous probability flows with a 4-RoSy kinematic strain regularizer. By reconciling geometric surface adherence with skeletal articulation mechanics, our method eliminates joint pinching under dynamic animation, guarantees regular edge loops across flexing limbs, and achieves real-time sub-10ms inference inside modern DCC pipelines.
+The formulation in Section~\ref{sec:method} is a draft of kinematic flow matching for quad retopology. The empirical claim that this draft beats QuadriFlow and MeshGPT is withdrawn. A later experiment has to run the trained velocity field, use a real autoregressive model or drop that baseline, and write the conclusion from that log.
 
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{references}
