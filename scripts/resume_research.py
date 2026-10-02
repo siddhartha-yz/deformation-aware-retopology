@@ -50,6 +50,10 @@ TARGET_REPORT_FILES = [
     "sampler_ablation.py",
     "baseline_comparison.py",
     "phase2_report.md",
+    "dataset_pipeline.py",
+    "train_flow_retopo.py",
+    "blender_retopo_addon.py",
+    "phase3_report.md",
 ]
 
 
@@ -203,9 +207,16 @@ def poll_interaction(
             try:
                 env_files = client.environments.files.list(environment=environment_id, path="")
                 file_names = [getattr(f, "name", "") for f in getattr(env_files, "files", [])]
-                phase2_targets = ["flow_retopo_model.py", "sampler_ablation.py", "baseline_comparison.py", "phase2_report.md"]
-                if all(req in file_names for req in phase2_targets):
-                    logger.info("All Phase 2 target artifacts detected in remote sandbox!")
+                current_phase_name = state.get("phase", "phase3")
+                if current_phase_name == "phase3":
+                    active_targets = ["dataset_pipeline.py", "train_flow_retopo.py", "blender_retopo_addon.py", "phase3_report.md"]
+                elif current_phase_name == "phase2":
+                    active_targets = ["flow_retopo_model.py", "sampler_ablation.py", "baseline_comparison.py", "phase2_report.md"]
+                else:
+                    active_targets = ["phase1_report.md"]
+
+                if all(req in file_names for req in active_targets):
+                    logger.info(f"All {current_phase_name} target artifacts detected in remote sandbox!")
                     current_status = "completed"
             except Exception as e:
                 logger.debug(f"Environments files check: {e}")
