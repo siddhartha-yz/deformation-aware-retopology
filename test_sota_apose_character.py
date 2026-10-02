@@ -449,7 +449,7 @@ def run_character_sota_experiments():
         # ----------------------------------------------------------------------
         # 2. Autoregressive Model (MeshGPT / PolyGen)
         # ----------------------------------------------------------------------
-        print(f"  [2] Executing Autoregressive Model (MeshGPT)...")
+        print("  [2] Executing autoregressive exposure-bias surrogate (not MeshGPT)...")
         t0 = time.perf_counter()
         # Sample points along the tilted high-poly surface with sequential exposure bias
         ar_rings = 22
@@ -490,9 +490,10 @@ def run_character_sota_experiments():
         print(f"      Latency: {ar_latency:.1f} ms | Q%: {ar_m['quad_ratio']:.1f}% | V4%: {ar_m['v4_pct']:.1f}% | Vol Retention: {ar_m['vol_retention']:.3f} | Angle Err: {ar_m['edge_angle_err']:.1f}°")
 
         # ----------------------------------------------------------------------
-        # 3. Our Deformation-Aware Flow Retopology Model
+        # 3. Analytic cylinder along the limb, snapped toward the high-poly surface.
+        # This is not FlowRetopoDiT.
         # ----------------------------------------------------------------------
-        print(f"  [3] Executing Our Deformation-Aware Flow Retopology Model (OT-CFM + 4-RoSy)...")
+        print("  [3] Executing analytic cylinder lattice (not the trained DiT)...")
         t0 = time.perf_counter()
         our_rings = 22
         our_segs = 16
@@ -562,7 +563,7 @@ def run_character_sota_experiments():
     # 4. Generate SOTA Publication Table & Monograph
     # ==========================================================================
     print("\n" + "=" * 125)
-    print("CONSOLIDATED REAL-WORLD CHARACTER SOTA EVALUATION TABLE (SIGGRAPH / CVPR FORMAT)")
+    print("CHARACTER BENCHMARK TABLE (analytic lattice vs QuadriFlow vs AR surrogate)")
     print("=" * 125)
     header = (
         f"{'Scenario / Asset':<38} | {'Method':<20} | {'Quad% ↑':<8} | {'V4% ↑':<8} | "
@@ -572,11 +573,13 @@ def run_character_sota_experiments():
     print("-" * 125)
 
     md_report_lines = [
-        "# Academic SOTA Benchmark: Real-World Character Retopology under Articulation",
+        "# Character benchmark log",
         "",
-        "## Comprehensive Evaluation Against Real C++ QuadriFlow & Deep Autoregressive Baselines",
+        "> Archival numerical log. Not a SOTA result. See `STATUS.md`.",
+        "> QuadriFlow is the C++ solver when installed. The autoregressive row is a drift surrogate, not MeshGPT.",
+        "> The cylinder row is a limb-aligned lattice snapped toward the high-poly surface, not `FlowRetopoDiT`.",
         "",
-        "| Benchmark Asset Scenario | Method | Quad % ($Q_\\%$) ↑ | Regular Valence ($V_{4\\%}$) ↑ | Chamfer ($CD$, mm) ↓ | Dirichlet Energy ($E_D$) ↓ | Joint Vol Retention ↑ | Inference Latency ↓ |",
+        "| Benchmark Asset Scenario | Method | Quad % | Regular Valence | Chamfer (mm) | Dirichlet Energy | Joint Vol Retention | Inference Latency |",
         "|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|"
     ]
 
@@ -588,27 +591,30 @@ def run_character_sota_experiments():
 
         # Print terminal rows
         print(f"{scen:<38} | {'QuadriFlow (C++)':<20} | {qf['quad_ratio']:>6.1f}% | {qf['v4_pct']:>6.1f}% | {qf['chamfer']:>12.3f} | {qf['dirichlet']:>12.4f} | {qf['vol_retention']:>13.3f} | {qf['latency']:>8.1f} ms")
-        print(f"{'':<38} | {'MeshGPT (AR)':<20} | {ar['quad_ratio']:>6.1f}% | {ar['v4_pct']:>6.1f}% | {ar['chamfer']:>12.3f} | {ar['dirichlet']:>12.4f} | {ar['vol_retention']:>13.3f} | {ar['latency']:>8.1f} ms")
-        print(f"{'':<38} | {'Ours (Flow Retopo)':<20} | {ours['quad_ratio']:>6.1f}% | {ours['v4_pct']:>6.1f}% | {ours['chamfer']:>12.3f} | {ours['dirichlet']:>12.4f} | {ours['vol_retention']:>13.3f} | {ours['latency']:>8.1f} ms")
+        print(f"{'':<38} | {'AR surrogate':<20} | {ar['quad_ratio']:>6.1f}% | {ar['v4_pct']:>6.1f}% | {ar['chamfer']:>12.3f} | {ar['dirichlet']:>12.4f} | {ar['vol_retention']:>13.3f} | {ar['latency']:>8.1f} ms")
+        print(f"{'':<38} | {'Cylinder lattice':<20} | {ours['quad_ratio']:>6.1f}% | {ours['v4_pct']:>6.1f}% | {ours['chamfer']:>12.3f} | {ours['dirichlet']:>12.4f} | {ours['vol_retention']:>13.3f} | {ours['latency']:>8.1f} ms")
         print("-" * 125)
 
-        # Markdown rows
-        md_report_lines.append(f"| **{scen}** | QuadriFlow (Real C++) | {qf['quad_ratio']:.1f}% | {qf['v4_pct']:.1f}% | {qf['chamfer']:.3f} | {qf['dirichlet']:.4f} | {qf['vol_retention']:.3f} (Severe Pinching) | {qf['latency']:.1f} ms |")
-        md_report_lines.append(f"| | MeshGPT (Autoregressive) | {ar['quad_ratio']:.1f}% | {ar['v4_pct']:.1f}% | {ar['chamfer']:.3f} | {ar['dirichlet']:.4f} | {ar['vol_retention']:.3f} (Pinching) | {ar['latency']:.1f} ms |")
-        md_report_lines.append(f"| | **Ours (Deformation Flow)** | **{ours['quad_ratio']:.1f}%** | **{ours['v4_pct']:.1f}%** | **{ours['chamfer']:.3f}** | **{ours['dirichlet']:.4f}** ($-{((qf['dirichlet'] - ours['dirichlet'])/qf['dirichlet'])*100:.1f}\\%$) | **{ours['vol_retention']:.3f}** ($+{((ours['vol_retention'] - qf['vol_retention'])/qf['vol_retention'])*100:.1f}\\%$) | **{ours['latency']:.1f} ms** (${qf['latency']/max(0.1, ours['latency']):.0f}\\times$ faster) |")
+        dir_change = ((ours["dirichlet"] - qf["dirichlet"]) / qf["dirichlet"]) * 100.0
+        vol_change = ((ours["vol_retention"] - qf["vol_retention"]) / qf["vol_retention"]) * 100.0
+        md_report_lines.append(f"| **{scen}** | QuadriFlow (C++) | {qf['quad_ratio']:.1f}% | {qf['v4_pct']:.1f}% | {qf['chamfer']:.3f} | {qf['dirichlet']:.4f} | {qf['vol_retention']:.3f} | {qf['latency']:.1f} ms |")
+        md_report_lines.append(f"| | AR surrogate (not MeshGPT) | {ar['quad_ratio']:.1f}% | {ar['v4_pct']:.1f}% | {ar['chamfer']:.3f} | {ar['dirichlet']:.4f} | {ar['vol_retention']:.3f} | {ar['latency']:.1f} ms |")
+        md_report_lines.append(
+            f"| | Analytic cylinder lattice | {ours['quad_ratio']:.1f}% | {ours['v4_pct']:.1f}% | {ours['chamfer']:.3f} | "
+            f"{ours['dirichlet']:.4f} ({dir_change:+.1f}% vs QuadriFlow) | {ours['vol_retention']:.3f} ({vol_change:+.1f}% vs QuadriFlow) | {ours['latency']:.1f} ms |"
+        )
 
     md_report_lines.extend([
         "",
-        "## Scientific Significance & Definitive SOTA Takeaways",
-        "1. **Candy-Wrapper Collapse Solved**: Under extreme 120° human flexion, QuadriFlow suffers catastrophic cross-sectional pinching (volume retention collapses to 48.2% ~ 51.5%) because its field cuts diagonally across the non-axial limb. Our method preserves **89.5% ~ 93.1% volume**, completely eliminating joint collapse.",
-        "2. **Conformal Dirichlet Distortion**: Our 4-RoSy kinematic strain regularizer reduces Dirichlet deformation energy by **62.4% ~ 71.8%** across all organic asset scenarios.",
-        "3. **Inference Latency Breakthrough**: Our parallel continuous flow matching solver executes in **1.8 ~ 2.4 ms**, achieving a **50x ~ 100x speedup** over QuadriFlow and **> 500x speedup** over deep autoregressive generation.",
-        "4. **Mesh Quality**: 100% pure quads ($Q_\\% = 100.0\\%$) with 100% regular valence-4 vertices ($V_{4\\%} = 100.0\\%$) and zero non-manifold boundaries."
+        "## Reading these numbers",
+        "Percent changes are `(lattice - QuadriFlow) / QuadriFlow`. A negative volume change means the lattice retained less joint volume.",
+        "Quad ratio and valence-4 ratio for the lattice are 100% because every emitted face is a quad on a regular grid.",
+        "Latency is grid construction time, not a trained flow-matching model.",
     ])
 
     report_file = RUNS_LATEST / "sota_character_benchmark.md"
     report_file.write_text("\n".join(md_report_lines), encoding="utf-8")
-    print(f"\nSOTA Benchmark Monograph successfully saved to: {report_file.resolve()}")
+    print(f"\nBenchmark log saved to: {report_file.resolve()}")
     print("Exported 3D rest and flexed meshes available in output/")
 
 

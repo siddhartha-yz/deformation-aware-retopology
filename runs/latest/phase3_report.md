@@ -1,10 +1,12 @@
 # Research Monograph & Final Synthesis: Phase 3
 ## Scaling, Kinematic Conditioning & Production Retopology via Multi-Modal Flow Matching
 
+> **Archival log.** The GO / confirmed verdict below is withdrawn. The current record is [STATUS.md](../../STATUS.md): the published comparison used an analytic cylinder lattice and an autoregressive surrogate, not a trained DiT and not MeshGPT.
+
 **Project Code:** `MESH-FLOW-RETOPOLOGY`  
 **Execution Environment:** Antigravity Managed Sandbox (`antigravity-preview-09-2026`)  
-**Status:** Completed & Empirically Verified  
-**Falsification Verdict:** **`[GO / ALL GATES PASSED / HYPOTHESIS CONFIRMED]`**
+**Status:** Archival. Empirical confirmation withdrawn 2026-10-03.  
+**Falsification Verdict:** **`[NO-GO on the confirmation. See STATUS.md]`**
 
 ---
 

@@ -315,7 +315,7 @@ def run_sota_benchmark() -> Dict[str, Any]:
     # --------------------------------------------------------------------------
     # BASELINE 2: Autoregressive Sequential Mesh Generation (MeshGPT / PolyGen)
     # --------------------------------------------------------------------------
-    print("\n[STEP 3] Running Baseline 2: Autoregressive Sequential Generation (MeshGPT / PolyGen)...")
+    print("\n[STEP 3] Running Baseline 2: autoregressive exposure-bias surrogate (not MeshGPT or PolyGen)...")
     # Simulate sequential token generation with accumulated exposure bias drift
     t0 = time.perf_counter()
     np.random.seed(42)
@@ -360,7 +360,7 @@ def run_sota_benchmark() -> Dict[str, Any]:
     ar_geom = SOTAMetricsEvaluator.compute_chamfer_and_hausdorff(ar_verts, high_pts, high_nrms)
     ar_def = SOTAMetricsEvaluator.compute_deformation_distortion(ar_verts, ar_faces, joints)
 
-    methods_results["MeshGPT (Autoregressive)"] = {
+    methods_results["AR surrogate (not MeshGPT)"] = {
         "verts": len(ar_verts),
         "faces": len(ar_faces),
         "quad_ratio": ar_topo["quad_ratio"],
@@ -382,7 +382,7 @@ def run_sota_benchmark() -> Dict[str, Any]:
     # --------------------------------------------------------------------------
     # OUR METHOD: Deformation-Aware Flow Matching (OT-CFM + 4-RoSy)
     # --------------------------------------------------------------------------
-    print("\n[STEP 4] Running Our Method: Deformation-Aware Flow Matching (Midpoint 2nd-Order)...")
+    print("\n[STEP 4] Running analytic cylinder lattice (not the trained DiT)...")
     t0 = time.perf_counter()
     our_verts, our_quads, our_weights = RetopoInferenceEngine.generate_quad_topology(
         target_pts=high_pts,
@@ -400,7 +400,7 @@ def run_sota_benchmark() -> Dict[str, Any]:
     our_geom = SOTAMetricsEvaluator.compute_chamfer_and_hausdorff(our_verts, high_pts, high_nrms)
     our_def = SOTAMetricsEvaluator.compute_deformation_distortion(our_verts, our_faces, joints)
 
-    methods_results["Ours (Deformation Flow)"] = {
+    methods_results["Analytic cylinder lattice"] = {
         "verts": len(our_verts),
         "faces": len(our_faces),
         "quad_ratio": our_topo["quad_ratio"],
@@ -439,7 +439,7 @@ def run_sota_benchmark() -> Dict[str, Any]:
     # STEP 6: Consolidated SOTA Scorecard Table
     # --------------------------------------------------------------------------
     print("\n" + "=" * 105)
-    print("ACADEMIC SOTA BENCHMARK EVALUATION SCORECARD")
+    print("BENCHMARK SCORECARD (analytic lattice vs QuadriFlow vs AR surrogate)")
     print("=" * 105)
 
     headers = [
@@ -458,9 +458,13 @@ def run_sota_benchmark() -> Dict[str, Any]:
     print("-" * 105)
 
     report_lines = [
-        "# SOTA Empirical Evaluation Report: Deformation-Aware Mesh Retopology",
+        "# Benchmark log: analytic cylinder lattice",
         "",
-        "## Academic Benchmark Scorecard across Real SOTA Baselines",
+        "> Archival numerical log. Not a SOTA result. See `STATUS.md`.",
+        "> QuadriFlow is the C++ solver when installed. The autoregressive row is a drift surrogate, not MeshGPT.",
+        "> The cylinder row is `RetopoInferenceEngine`, not `FlowRetopoDiT`.",
+        "",
+        "## Scores",
         "",
         "| Method | Quad % (Q%) ↑ | Valence-4 % (V4%) ↑ | Chamfer (mm) ↓ | HD95 (mm) ↓ | Normal Cons. ↑ | Dirichlet $E_D$ ↓ | Vol Retention ↑ | 4-RoSy Strain Loss ↓ | Latency (ms) ↓ |",
         "|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|"
@@ -488,33 +492,29 @@ def run_sota_benchmark() -> Dict[str, Any]:
 
     print("=" * 105)
 
-    # Key SOTA Takeaways
     qf = methods_results.get("QuadriFlow (Real C++)")
-    ours = methods_results.get("Ours (Deformation Flow)")
-    if qf and ours:
-        dirichlet_reduction = ((qf["dirichlet"] - ours["dirichlet"]) / qf["dirichlet"]) * 100.0
-        vol_gain = ((ours["vol_retention"] - qf["vol_retention"]) / qf["vol_retention"]) * 100.0
-        speedup = qf["latency_ms"] / max(0.1, ours["latency_ms"])
-
-        print(f"\n[KEY SOTA ADVANTAGES OVER REAL QUADRIFLOW]:")
-        print(f"  • Dirichlet Distortion Reduction:  {dirichlet_reduction:.1f}% (Ours {ours['dirichlet']:.4f} vs. QF {qf['dirichlet']:.4f})")
-        print(f"  • Joint Volume Retention Gain:     +{vol_gain:.1f}% (Ours {ours['vol_retention']:.3f} vs. QF {qf['vol_retention']:.3f} pinching)")
-        print(f"  • Parallel Inference Speedup:      {speedup:.1f}x faster ({ours['latency_ms']:.2f} ms vs. {qf['latency_ms']:.2f} ms)")
-        print(f"  • 4-RoSy Strain Alignment Loss:    {ours['strain_loss']:.4f} vs. {qf['strain_loss']:.4f}")
-
+    lattice = methods_results.get("Analytic cylinder lattice")
     report_lines.extend([
         "",
-        "## Core Scientific Conclusions",
-        f"1. **Deformation Superority**: Under 90-degree joint flexion, QuadriFlow experiences severe cross-sectional pinching (retaining only {qf['vol_retention']:.1%} volume) due to static curvature alignment. Our model preserves **{ours['vol_retention']:.1%} volume**, cutting Dirichlet conformal distortion by **{dirichlet_reduction:.1f}%**.",
-        f"2. **Real-time Inference Speed**: Our parallel 2nd-order Midpoint ODE integrator executes in **{ours['latency_ms']:.2f} ms**, achieving a **{speedup:.1f}x speedup** over QuadriFlow ({qf['latency_ms']:.2f} ms) and over **{methods_results['MeshGPT (Autoregressive)']['latency_ms'] / ours['latency_ms']:.0f}x speedup** over autoregressive token generation.",
-        f"3. **Topological Purity**: Our model delivers **{ours['quad_ratio']:.1f}% quads** with **{ours['v4_pct']:.1f}% regular valence-4 vertices**, completely free of non-manifold edges.",
-        "",
-        "**Definitive SOTA Claim**: While classical methods are competitive on static geometry, **our deformation-aware parallel flow matching model establishes a decisive new State-of-the-Art on animation-ready, dynamic quad retopology.**"
+        "## Reading these numbers",
+        "Quad ratio and valence-4 ratio for the cylinder lattice are 100% because the generator emits only quads on a regular grid.",
+        "Latency compares that grid construction with QuadriFlow and with a sleep-padded surrogate. It is not a neural inference time.",
     ])
+    if qf and lattice:
+        dirichlet_change = ((lattice["dirichlet"] - qf["dirichlet"]) / qf["dirichlet"]) * 100.0
+        vol_change = ((lattice["vol_retention"] - qf["vol_retention"]) / qf["vol_retention"]) * 100.0
+        print("\n[Deltas vs QuadriFlow, analytic cylinder lattice]")
+        print(f"  • Dirichlet change:      {dirichlet_change:+.1f}% ({lattice['dirichlet']:.4f} vs {qf['dirichlet']:.4f})")
+        print(f"  • Volume retention change: {vol_change:+.1f}% ({lattice['vol_retention']:.3f} vs {qf['vol_retention']:.3f})")
+        print(f"  • Wall time:             {lattice['latency_ms']:.2f} ms vs QuadriFlow {qf['latency_ms']:.2f} ms")
+        report_lines.append(
+            f"On this run, Dirichlet changed by {dirichlet_change:+.1f}% and volume retention by {vol_change:+.1f}% relative to QuadriFlow."
+        )
+        report_lines.append("A negative volume change means the lattice retained less joint volume than QuadriFlow.")
 
     report_path = Path("runs/latest/sota_evaluation_report.md")
     report_path.write_text("\n".join(report_lines), encoding="utf-8")
-    print(f"\nDetailed SOTA Evaluation Report saved to: {report_path.resolve()}")
+    print(f"\nBenchmark log saved to: {report_path.resolve()}")
 
     return methods_results
 

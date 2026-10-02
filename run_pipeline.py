@@ -174,7 +174,8 @@ def run_benchmarks() -> None:
     for r in results:
         print(f"{r['name']:<35} | {r['verts']:<6} | {r['quads']:<6} | {r['q_pct']:<8.1f} | {r['v4_pct']:<8.1f} | {r['latency']:<7.2f} ms")
     print("=" * 90)
-    print("All archetypes satisfy Gate 3 (Q% >= 98%, V4% >= 90%) and Gate 2 (Latency < 250ms)!")
+    print("These rows are the analytic cylinder lattice. Quad ratio is 100% by construction.")
+    print("This command does not load FlowRetopoDiT and does not decide a research gate.")
 
 
 def main() -> None:

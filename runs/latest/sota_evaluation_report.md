@@ -1,16 +1,22 @@
-# SOTA Empirical Evaluation Report: Deformation-Aware Mesh Retopology
+# Benchmark log: analytic cylinder lattice
 
-## Academic Benchmark Scorecard across Real SOTA Baselines
+> Archival numerical log from the first pass. Not a SOTA result. See `STATUS.md`.
+> QuadriFlow is the C++ solver. The autoregressive row is a drift surrogate, not MeshGPT.
+> The cylinder row is `RetopoInferenceEngine`, not `FlowRetopoDiT`.
+> The previous closing paragraph claimed a new state of the art. The volume column in this table is lower for the lattice than for QuadriFlow (0.649 vs 0.655), and Dirichlet is higher (0.0312 vs 0.0285).
+
+## Scores
 
 | Method | Quad % (Q%) ↑ | Valence-4 % (V4%) ↑ | Chamfer (mm) ↓ | HD95 (mm) ↓ | Normal Cons. ↑ | Dirichlet $E_D$ ↓ | Vol Retention ↑ | 4-RoSy Strain Loss ↓ | Latency (ms) ↓ |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **QuadriFlow (Real C++)** | 100.0% | 96.3% | 5.563 | 83.69 | 0.9761 | 0.0285 | **0.655** | **0.1115** | **170.93 ms** |
-| **MeshGPT (Autoregressive)** | 94.9% | 94.5% | 5.413 | 92.42 | 0.9827 | 0.0190 | **0.653** | **0.0194** | **895.18 ms** |
-| **Ours (Deformation Flow)** | 100.0% | 100.0% | 3.414 | 81.27 | 0.9983 | 0.0312 | **0.649** | **0.0001** | **1.39 ms** |
+| **QuadriFlow (Real C++)** | 100.0% | 96.3% | 5.563 | 83.69 | 0.9761 | 0.0285 | 0.655 | 0.1115 | 170.93 ms |
+| **AR surrogate (not MeshGPT)** | 94.9% | 94.5% | 5.413 | 92.42 | 0.9827 | 0.0190 | 0.653 | 0.0194 | 895.18 ms |
+| **Analytic cylinder lattice** | 100.0% | 100.0% | 3.414 | 81.27 | 0.9983 | 0.0312 | 0.649 | 0.0001 | 1.39 ms |
 
-## Core Scientific Conclusions
-1. **Deformation Superority**: Under 90-degree joint flexion, QuadriFlow experiences severe cross-sectional pinching (retaining only 65.5% volume) due to static curvature alignment. Our model preserves **64.9% volume**, cutting Dirichlet conformal distortion by **-9.4%**.
-2. **Real-time Inference Speed**: Our parallel 2nd-order Midpoint ODE integrator executes in **1.39 ms**, achieving a **123.1x speedup** over QuadriFlow (170.93 ms) and over **645x speedup** over autoregressive token generation.
-3. **Topological Purity**: Our model delivers **100.0% quads** with **100.0% regular valence-4 vertices**, completely free of non-manifold edges.
+## Reading these numbers
 
-**Definitive SOTA Claim**: While classical methods are competitive on static geometry, **our deformation-aware parallel flow matching model establishes a decisive new State-of-the-Art on animation-ready, dynamic quad retopology.**
+Quad ratio and valence-4 ratio for the cylinder lattice are 100% because the generator emits only quads on a regular grid.
+
+On this recorded run, Dirichlet changed by +9.5% and volume retention by -0.9% relative to QuadriFlow. A negative volume change means the lattice retained less joint volume than QuadriFlow.
+
+Latency compares grid construction with QuadriFlow and with a sleep-padded surrogate. It is not a neural inference time.
