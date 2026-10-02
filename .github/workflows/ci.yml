@@ -43,6 +43,9 @@ jobs:
           test -f release/retopo_flow_blender_addon_v1.0.0.zip
           test -f release/SHA256SUMS.txt
 
+      - name: Oracle edge-orientation test
+        run: python experiments/oracle_edge_orientation.py
+
       - name: Run Unified Pipeline Demo Mode
         run: |
           python run_pipeline.py --mode demo --archetype planar_hinge --steps 5

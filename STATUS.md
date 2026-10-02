@@ -32,10 +32,20 @@ PolyFlow (arXiv:2606.30673) already generates meshes by flow matching on continu
 
 A later experiment has to put the trained velocity field on the inference path, compare with a real autoregressive mesh model or drop that baseline, and write the conclusion from the run log.
 
+## Oracle edge orientation
+
+`experiments/oracle_edge_orientation.py` compares grid quads with 45° diamonds on the **same vertices** and the same Linear Blend Skinning. The pre-registered rule was that axis-aligned quads must have strictly lower joint-band Dirichlet energy at 90° and 120° on both a cylinder and a planar hinge.
+
+**Verdict: `NOT_SUPPORTED`.** On the cylinder at 90°, joint Dirichlet is 0.174 for aligned quads and 0.144 for diamonds. At 120° it is 0.158 versus 0.120. On the hinge the joint Dirichlet is 0 for both, because the energy clamps `trace(C) - 3` at zero while the faces are compressing. Joint area ratio does not favor the aligned quads either (hinge at 90°: 0.804 aligned, 0.834 diagonal).
+
+Vertex-radius ratio is identical for the two topologies. It does not measure edge direction. The diamonds also have fewer, longer edges, so this is not a matched-resolution proof that 45° edges are better. It is enough to reject the claim that axis-aligned edges win this test.
+
+A first hinge construction sheared the surface in a direction the bend does not stretch. Its Dirichlet did not move. That log is `runs/oracle_edge_orientation/null_hinge_instrument.md`.
+
 ## Decision
 
 ```text
 NO-GO
 ```
 
-The hypothesis is not ruled out. The confirmation is.
+The published neural comparison remains withdrawn. The cheaper mechanism test above also failed its pre-registered rule. A later model is not justified until an oracle edge field beats a curvature field on a metric that can see the difference, at matched element size.

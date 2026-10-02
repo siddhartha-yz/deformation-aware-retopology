@@ -1,0 +1,247 @@
+{
+  "verdict": "NOT_SUPPORTED",
+  "config": {
+    "seed": 0,
+    "joint_band": 0.15,
+    "skin_delta": 0.15,
+    "angles_deg": [
+      0,
+      45,
+      90,
+      120
+    ],
+    "decision_angles_deg": [
+      90,
+      120
+    ],
+    "cylinder": {
+      "radius": 0.4,
+      "height": 2.0,
+      "n_along": 21,
+      "n_around": 16
+    },
+    "hinge": {
+      "length": 2.0,
+      "width": 0.6,
+      "n_along": 21,
+      "n_across": 7
+    },
+    "decision_rule": "MECHANISM if, at every decision angle, joint-band Dirichlet of the axis-aligned quads is strictly lower than the 45-degree quads on both the cylinder and the planar hinge. Otherwise NOT_SUPPORTED. This does not test a neural model."
+  },
+  "rows": [
+    {
+      "shape": "cylinder",
+      "topology": "aligned",
+      "angle_deg": 0.0,
+      "joint_dirichlet": 3.700743415417188e-17,
+      "global_dirichlet": 6.591949208711867e-17,
+      "joint_area_ratio": 1.0,
+      "vertex_radius_ratio": 1.0,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.12803612880645132,
+      "rest_mean_area": 0.01560722576129026
+    },
+    {
+      "shape": "cylinder",
+      "topology": "diagonal",
+      "angle_deg": 0.0,
+      "joint_dirichlet": 2.312964634635743e-17,
+      "global_dirichlet": 7.28583859910259e-17,
+      "joint_area_ratio": 1.0,
+      "vertex_radius_ratio": 0.9999999999999998,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.1486548675600457,
+      "rest_mean_area": 0.016363348351582836
+    },
+    {
+      "shape": "cylinder",
+      "topology": "aligned",
+      "angle_deg": 45.0,
+      "joint_dirichlet": 0.12672218302558078,
+      "global_dirichlet": 0.049144527915975976,
+      "joint_area_ratio": 0.9147389865367256,
+      "vertex_radius_ratio": 0.928105697559903,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.12803612880645132,
+      "rest_mean_area": 0.01560722576129026
+    },
+    {
+      "shape": "cylinder",
+      "topology": "diagonal",
+      "angle_deg": 45.0,
+      "joint_dirichlet": 0.12437513909451665,
+      "global_dirichlet": 0.048177895487167256,
+      "joint_area_ratio": 0.9212210823395912,
+      "vertex_radius_ratio": 0.9281056975601576,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.1486548675600457,
+      "rest_mean_area": 0.016363348351582836
+    },
+    {
+      "shape": "cylinder",
+      "topology": "aligned",
+      "angle_deg": 90.0,
+      "joint_dirichlet": 0.17422811778523414,
+      "global_dirichlet": 0.082984551288474,
+      "joint_area_ratio": 0.7685083349308096,
+      "vertex_radius_ratio": 0.7480918935943964,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.12803612880645132,
+      "rest_mean_area": 0.01560722576129026
+    },
+    {
+      "shape": "cylinder",
+      "topology": "diagonal",
+      "angle_deg": 90.0,
+      "joint_dirichlet": 0.17134951157822043,
+      "global_dirichlet": 0.08187056908754525,
+      "joint_area_ratio": 0.7751122318548225,
+      "vertex_radius_ratio": 0.7480919179690083,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.1486548675600457,
+      "rest_mean_area": 0.016363348351582836
+    },
+    {
+      "shape": "cylinder",
+      "topology": "aligned",
+      "angle_deg": 120.0,
+      "joint_dirichlet": 0.1575598396066198,
+      "global_dirichlet": 0.09330390614357191,
+      "joint_area_ratio": 0.7445153568237638,
+      "vertex_radius_ratio": 0.6110954470322846,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.12803612880645132,
+      "rest_mean_area": 0.01560722576129026
+    },
+    {
+      "shape": "cylinder",
+      "topology": "diagonal",
+      "angle_deg": 120.0,
+      "joint_dirichlet": 0.1520435639670236,
+      "global_dirichlet": 0.09154226674789627,
+      "joint_area_ratio": 0.7402270126541851,
+      "vertex_radius_ratio": 0.611099067107246,
+      "n_vertices": 336,
+      "n_faces": 320,
+      "rest_mean_edge_length": 0.1486548675600457,
+      "rest_mean_area": 0.016363348351582836
+    },
+    {
+      "shape": "hinge",
+      "topology": "aligned",
+      "angle_deg": 0.0,
+      "joint_dirichlet": 2.4671622769447922e-17,
+      "global_dirichlet": 2.590520390792032e-17,
+      "joint_area_ratio": 1.0,
+      "vertex_radius_ratio": 1.0,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.10000000000000003,
+      "rest_mean_area": 0.01
+    },
+    {
+      "shape": "hinge",
+      "topology": "diagonal",
+      "angle_deg": 0.0,
+      "joint_dirichlet": 4.9343245538895844e-17,
+      "global_dirichlet": 4.810966440042345e-17,
+      "joint_area_ratio": 1.0,
+      "vertex_radius_ratio": 1.0,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.12071067811865475,
+      "rest_mean_area": 0.010000000000000002
+    },
+    {
+      "shape": "hinge",
+      "topology": "aligned",
+      "angle_deg": 45.0,
+      "joint_dirichlet": 0.0,
+      "global_dirichlet": 0.012662461104133549,
+      "joint_area_ratio": 0.9475963131915601,
+      "vertex_radius_ratio": 0.9765287893911745,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.10000000000000003,
+      "rest_mean_area": 0.01
+    },
+    {
+      "shape": "hinge",
+      "topology": "diagonal",
+      "angle_deg": 45.0,
+      "joint_dirichlet": 0.0,
+      "global_dirichlet": 0.012662461104133547,
+      "joint_area_ratio": 0.9475963131915601,
+      "vertex_radius_ratio": 0.9780605107802105,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.12071067811865475,
+      "rest_mean_area": 0.010000000000000002
+    },
+    {
+      "shape": "hinge",
+      "topology": "aligned",
+      "angle_deg": 90.0,
+      "joint_dirichlet": 0.0,
+      "global_dirichlet": 0.04323234643475452,
+      "joint_area_ratio": 0.8036093396470432,
+      "vertex_radius_ratio": 0.9098711959090829,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.10000000000000003,
+      "rest_mean_area": 0.01
+    },
+    {
+      "shape": "hinge",
+      "topology": "diagonal",
+      "angle_deg": 90.0,
+      "joint_dirichlet": 0.0,
+      "global_dirichlet": 0.04323234643475452,
+      "joint_area_ratio": 0.8036093396470432,
+      "vertex_radius_ratio": 0.9154547662058716,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.12071067811865475,
+      "rest_mean_area": 0.010000000000000002
+    },
+    {
+      "shape": "hinge",
+      "topology": "aligned",
+      "angle_deg": 120.0,
+      "joint_dirichlet": 0.0,
+      "global_dirichlet": 0.06484851965213179,
+      "joint_area_ratio": 0.6767396578311272,
+      "vertex_radius_ratio": 0.8566272704665192,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.10000000000000003,
+      "rest_mean_area": 0.01
+    },
+    {
+      "shape": "hinge",
+      "topology": "diagonal",
+      "angle_deg": 120.0,
+      "joint_dirichlet": 0.0,
+      "global_dirichlet": 0.06484851965213179,
+      "joint_area_ratio": 0.6767396578311272,
+      "vertex_radius_ratio": 0.8652339512525398,
+      "n_vertices": 147,
+      "n_faces": 120,
+      "rest_mean_edge_length": 0.12071067811865475,
+      "rest_mean_area": 0.010000000000000002
+    }
+  ],
+  "environment": {
+    "git_revision": "a7c8fdda57ea9f408deaf655cced2b86f735d428",
+    "python": "3.14.4",
+    "numpy": "2.5.3",
+    "platform": "Linux-7.0.0-34-generic-x86_64-with-glibc2.43"
+  }
+}

@@ -14,7 +14,7 @@ Research repository on **conditional, deformation-aware quad retopology**. The q
 
 Input a high-resolution surface and a deformation condition (joints, skinning weights, or pose gradients). Output a quad-dominant mesh whose edge loops follow articulation axes, so Linear Blend Skinning distorts the surface less than a curvature-aligned quad mesh.
 
-Prior art already covers static flow-matching mesh generation, notably PolyFlow (arXiv:2606.30673). The remaining question is the kinematic condition. It is still open.
+Prior art already covers static flow-matching mesh generation, notably PolyFlow (arXiv:2606.30673). A pre-registered oracle test of edge direction, without a neural model, is in `experiments/oracle_edge_orientation.py`. Axis-aligned quads did not beat 45° diamonds on joint Dirichlet. The log is `runs/oracle_edge_orientation/report.md`.
 
 ## What is in the tree
 

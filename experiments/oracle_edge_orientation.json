@@ -1,0 +1,20 @@
+{
+  "seed": 0,
+  "joint_band": 0.15,
+  "skin_delta": 0.15,
+  "angles_deg": [0, 45, 90, 120],
+  "decision_angles_deg": [90, 120],
+  "cylinder": {
+    "radius": 0.4,
+    "height": 2.0,
+    "n_along": 21,
+    "n_around": 16
+  },
+  "hinge": {
+    "length": 2.0,
+    "width": 0.6,
+    "n_along": 21,
+    "n_across": 7
+  },
+  "decision_rule": "MECHANISM if, at every decision angle, joint-band Dirichlet of the axis-aligned quads is strictly lower than the 45-degree quads on both the cylinder and the planar hinge. Otherwise NOT_SUPPORTED. This does not test a neural model."
+}
