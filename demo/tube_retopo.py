@@ -583,19 +583,24 @@ def main() -> None:
         body_fig.suptitle("想切哪根，就告诉它方向", fontsize=16)
         body_fig.savefig(gallery.with_name("12_aim.png"), dpi=150, bbox_inches="tight", facecolor="white")
         plt.close(body_fig)
-        arm_only = body_v[body_v[:, 0] > 0.35]
-        aim_limits = bounds_of([arm_only, body_arm], pad=0.04)
-        aim_fig = plt.figure(figsize=(8.4, 4.4), facecolor="white")
-        for index, (verts, faces, edge, title) in enumerate(
-            (
-                (body_v, body_f, SCULPT_EDGE, "胳膊那一段"),
-                (body_arm, body_arm_f, QUAD_EDGE, f"切出来 · {len(body_arm_f)} 个四边面"),
-            ),
-            start=1,
-        ):
-            ax = aim_fig.add_subplot(1, 2, index, projection="3d")
-            _draw(ax, verts, faces, edge, title, aim_limits, elev=12, azim=-70, linewidth=0.8)
-        aim_fig.suptitle("指定向右之后，只剩这条胳膊", fontsize=16)
+        arm_faces = body_f[body_v[body_f].mean(axis=1)[:, 0] > 0.32]
+        aim_fig, ax = plt.subplots(figsize=(8.8, 3.6), facecolor="white")
+        arm_xy = np.column_stack([body_v[:, 0], body_v[:, 2]])
+        order = np.argsort(body_v[arm_faces].mean(axis=1)[:, 1])
+        for face in arm_faces[order]:
+            poly = arm_xy[face]
+            ax.fill(poly[:, 0], poly[:, 1], color="#F3D7C3", edgecolor="#E7C4A8", linewidth=0.15, zorder=1)
+        wire = np.column_stack([body_arm[:, 0], body_arm[:, 2]])
+        for face in body_arm_f:
+            pts = body_arm[list(face)]
+            normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            if float(normal[1]) <= 0.0:
+                continue
+            loop = wire[list(face) + [int(face[0])]]
+            ax.plot(loop[:, 0], loop[:, 1], color="#C2410C", linewidth=1.15, solid_capstyle="round", zorder=3)
+        ax.set_title(f"指定向右之后，只剩这条胳膊 · {len(body_arm_f)} 个四边面", fontsize=14, pad=8)
+        ax.set_aspect("equal")
+        ax.axis("off")
         aim_fig.savefig(gallery.with_name("13_arm_only.png"), dpi=150, bbox_inches="tight", facecolor="white")
         plt.close(aim_fig)
         print(f"body auto={len(body_default_f)} arm={len(body_arm_f)}")
