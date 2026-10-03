@@ -434,7 +434,7 @@ def _draw_side(ax, body_v: np.ndarray, body_f: np.ndarray, wire_v: np.ndarray | 
     ax.axis("off")
 
 
-def save_preview(sculpt, quads_v, quads_f, bent, out: Path, angle: float = 90.0) -> None:
+def save_preview(sculpt, quads_v, quads_f, bent, out: Path, angle: float = 90.0, note: str = "") -> None:
     setup_font()
     center, rotation = _upright_frame(quads_v)
     sculpt_v = (sculpt[0] - center) @ rotation.T
@@ -444,7 +444,7 @@ def save_preview(sculpt, quads_v, quads_f, bent, out: Path, angle: float = 90.0)
     fig, axes = plt.subplots(1, 2, figsize=(9.2, 6.6), facecolor="white", constrained_layout=True)
     _draw_side(axes[0], sculpt_v, sculpt_f, quads_up, quads_f, f"环线套在高模上 · {len(quads_f)} 个四边面")
     _draw_side(axes[1], bent_up, quads_f, bent_up, quads_f, f"再弯 {angle:.0f}°")
-    fig.suptitle("高模进来，环线四边面出去", fontsize=16)
+    fig.suptitle(note or "高模进来，环线四边面出去", fontsize=16)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
@@ -697,20 +697,24 @@ def main() -> None:
         vertices, faces, n_rings=args.rings, n_around=args.around, axis=chosen_axis
     )
     bent = bend_tube(quads_v, args.bend)
-    save_preview((vertices, faces), quads_v, quads_f, bent, preview, angle=args.bend)
+    hints = (
+        ("左右", "1,0,0", "-1,0,0"),
+        ("前后", "0,1,0", "0,-1,0"),
+        ("上下", "0,0,1", "0,0,-1"),
+    )
+    missed = [] if chosen_axis is not None else missed_directions(vertices, quads_v)
+    note = ""
+    if missed:
+        names = "、".join(hints[axis][0] for axis in missed)
+        note = f"{names}还没切完"
+    save_preview((vertices, faces), quads_v, quads_f, bent, preview, angle=args.bend, note=note)
     save_bend_strip(quads_v, quads_f, strip)
     write_obj(ring_path, quads_v, quads_f)
     write_obj(bent_path, bent, quads_f)
     print(f"三角面 {len(faces)} 个，套成四边面 {len(quads_f)} 个")
-    if chosen_axis is None:
-        hints = (
-            ("左右", "1,0,0", "-1,0,0"),
-            ("前后", "0,1,0", "0,-1,0"),
-            ("上下", "0,0,1", "0,0,-1"),
-        )
-        for axis in missed_directions(vertices, quads_v):
-            name, positive, negative = hints[axis]
-            print(f"{name}还没切完。正向 --axis {positive}，反向 --axis {negative}")
+    for axis in missed:
+        name, positive, negative = hints[axis]
+        print(f"{name}还没切完。正向 --axis {positive}，反向 --axis {negative}")
     print(ring_path)
     print(bent_path)
     print(preview)
