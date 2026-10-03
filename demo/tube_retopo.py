@@ -445,17 +445,17 @@ def save_preview(sculpt, quads_v, quads_f, bent, out: Path, angle: float = 90.0)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="给管子形状的模型套环线四边面")
-    parser.add_argument("mesh", nargs="?", type=Path)
+    parser = argparse.ArgumentParser(description="给胳膊、手指、软管这类细长模型套一圈圈四边面")
+    parser.add_argument("mesh", nargs="?", type=Path, help="你的 OBJ。不写就用内置的一条胳膊")
     parser.add_argument("--demo", action="store_true", help="用内置的一条胳膊高模")
-    parser.add_argument("--gallery", action="store_true", help="胳膊、手指、软管各做一遍")
+    parser.add_argument("--gallery", action="store_true", help="胳膊、手指、软管各做一遍，并写出说明里的图")
     parser.add_argument("--check", action="store_true", help="检查指定方向时切出来的是胳膊")
-    parser.add_argument("--rings", type=int, default=26)
-    parser.add_argument("--around", type=int, default=16)
-    parser.add_argument("--bend", type=float, default=90.0)
-    parser.add_argument("--axis", type=str, default=None, help="例如 1,0,0，顺着这个方向切细的那根")
-    parser.add_argument("--out", type=Path, default=None)
-    parser.add_argument("--mesh-dir", type=Path, default=None)
+    parser.add_argument("--rings", type=int, default=26, help="沿着这根切多少圈")
+    parser.add_argument("--around", type=int, default=16, help="每一圈几个点")
+    parser.add_argument("--bend", type=float, default=90.0, help="预览里弯多少度")
+    parser.add_argument("--axis", type=str, default=None, help="切哪根，例如 1,0,0 向右，-1,0,0 向左")
+    parser.add_argument("--out", type=Path, default=None, help="预览图写到这里，默认跟模型放一起")
+    parser.add_argument("--mesh-dir", type=Path, default=None, help="OBJ 写到这个目录，默认跟模型放一起")
     args = parser.parse_args()
 
     if args.check:
