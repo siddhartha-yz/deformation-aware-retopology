@@ -279,7 +279,7 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
         origin = origin + forward * step
     if len(rings) < 4:
         raise RuntimeError("这个方向上切不出一条细管子")
-    rings = _align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(rings), scale))
+    rings = _drop_shrunk_ends(_align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(rings), scale)))
     quads = []
     count = n_around
     for j in range(len(rings) - 1):
@@ -354,6 +354,19 @@ def _drop_tilted_ends(rings: list[np.ndarray], limit_deg: float = 18.0) -> list[
     while len(rings) >= 5 and tilted(rings[0], rings[1]):
         rings = rings[1:]
     while len(rings) >= 5 and tilted(rings[-1], rings[-2]):
+        rings = rings[:-1]
+    return rings
+
+
+def _drop_shrunk_ends(rings: list[np.ndarray]) -> list[np.ndarray]:
+    """Drop an end ring that is a small off-center slice, not the tube."""
+
+    def radius(ring: np.ndarray) -> float:
+        return float(np.mean(np.linalg.norm(ring - ring.mean(axis=0), axis=1)))
+
+    while len(rings) >= 5 and radius(rings[0]) < 0.7 * radius(rings[1]):
+        rings = rings[1:]
+    while len(rings) >= 5 and radius(rings[-1]) < 0.7 * radius(rings[-2]):
         rings = rings[:-1]
     return rings
 
@@ -515,7 +528,7 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         straight = _straight_rings(vertices, faces, kept_origins, n_rings, n_around, scale)
         if straight is not None:
             rings = straight
-    rings = _align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(_drop_bridged_rings(rings)), scale))
+    rings = _drop_shrunk_ends(_align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(_drop_bridged_rings(rings)), scale)))
     if len(rings) < 2:
         direction = centers[-1] - centers[0]
     else:
