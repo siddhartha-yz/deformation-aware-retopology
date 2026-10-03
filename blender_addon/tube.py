@@ -279,7 +279,7 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
         origin = origin + forward * step
     if len(rings) < 4:
         raise RuntimeError("这个方向上切不出一条细管子")
-    rings = _extend_to_tips(vertices, faces, _drop_tilted_ends(rings), scale)
+    rings = _align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(rings), scale))
     quads = []
     count = n_around
     for j in range(len(rings) - 1):
@@ -356,6 +356,17 @@ def _drop_tilted_ends(rings: list[np.ndarray], limit_deg: float = 18.0) -> list[
     while len(rings) >= 5 and tilted(rings[-1], rings[-2]):
         rings = rings[:-1]
     return rings
+
+
+def _align_ring_seams(rings: list[np.ndarray]) -> list[np.ndarray]:
+    """Keep point 0 on the same side of the tube, so a flipped frame does not twist the quads."""
+    if len(rings) < 2:
+        return rings
+    aligned = [rings[0]]
+    for ring in rings[1:]:
+        shift = int(np.argmin(np.linalg.norm(ring - aligned[-1][0], axis=1)))
+        aligned.append(np.roll(ring, -shift, axis=0))
+    return aligned
 
 
 def _ring_is_tilted(previous: np.ndarray, ring: np.ndarray, limit_deg: float = 18.0) -> bool:
@@ -504,7 +515,7 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         straight = _straight_rings(vertices, faces, kept_origins, n_rings, n_around, scale)
         if straight is not None:
             rings = straight
-    rings = _extend_to_tips(vertices, faces, _drop_tilted_ends(_drop_bridged_rings(rings)), scale)
+    rings = _align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(_drop_bridged_rings(rings)), scale))
     if len(rings) < 2:
         direction = centers[-1] - centers[0]
     else:
