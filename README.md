@@ -54,7 +54,7 @@ python demo/tube_retopo.py --gallery
 python demo/tube_retopo.py --demo
 ```
 
-图在 `docs/figures/07_retopo.png`。
+图在 `docs/figures/07_retopo.png`：左边是环线套在高模上，右边是弯 90°。
 
 ## 跑你自己的模型
 

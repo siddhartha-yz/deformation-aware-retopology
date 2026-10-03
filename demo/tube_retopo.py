@@ -366,21 +366,57 @@ def save_bend_strip(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
     plt.close(fig)
 
 
-def save_preview(sculpt, quads_v, quads_f, bent, out: Path) -> None:
+def _upright_frame(vertices: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    center, direction = long_axis(vertices)
+    target = np.array([0.0, 0.0, 1.0])
+    axis = np.cross(direction, target)
+    sine = float(np.linalg.norm(axis))
+    cosine = float(np.clip(direction @ target, -1.0, 1.0))
+    if sine < 1e-8:
+        rotation = np.eye(3) if cosine > 0 else np.diag([1.0, -1.0, -1.0])
+    else:
+        axis = axis / sine
+        rotation = (
+            cosine * np.eye(3)
+            + sine * np.array([[0.0, -axis[2], axis[1]], [axis[2], 0.0, -axis[0]], [-axis[1], axis[0], 0.0]])
+            + (1.0 - cosine) * np.outer(axis, axis)
+        )
+    return center, rotation
+
+
+def _draw_side(ax, body_v: np.ndarray, body_f: np.ndarray, wire_v: np.ndarray | None, wire_f: np.ndarray | None, title: str) -> None:
+    xy = np.column_stack([body_v[:, 0], body_v[:, 2]])
+    order = np.argsort(body_v[body_f].mean(axis=1)[:, 1])
+    for face in body_f[order]:
+        poly = xy[face]
+        ax.fill(poly[:, 0], poly[:, 1], color="#F3D7C3", edgecolor="#E7C4A8", linewidth=0.12, zorder=1)
+    if wire_v is not None and wire_f is not None:
+        wire_xy = np.column_stack([wire_v[:, 0], wire_v[:, 2]])
+        for face in wire_f:
+            pts = wire_v[list(face)]
+            normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            if float(normal[1]) <= 0.0:
+                continue
+            loop = wire_xy[list(face) + [int(face[0])]]
+            ax.plot(loop[:, 0], loop[:, 1], color="#6B4A36", linewidth=1.05, solid_capstyle="round", zorder=3)
+    ax.set_title(title, fontsize=14, pad=8)
+    ax.set_aspect("equal", adjustable="box")
+    ax.axis("off")
+
+
+def save_preview(sculpt, quads_v, quads_f, bent, out: Path, angle: float = 90.0) -> None:
     setup_font()
-    limits = bounds_of([sculpt[0], quads_v, bent], pad=0.08)
-    fig = plt.figure(figsize=(11.4, 4.4), facecolor="white")
-    panels = (
-        (sculpt[0], sculpt[1], SCULPT_EDGE, f"高模 · {len(sculpt[1])} 个三角面"),
-        (quads_v, quads_f, QUAD_EDGE, f"环线 · {len(quads_f)} 个四边面"),
-        (bent, quads_f, QUAD_EDGE, "再弯 90°"),
-    )
-    for index, (verts, faces, edge, title) in enumerate(panels, start=1):
-        ax = fig.add_subplot(1, 3, index, projection="3d")
-        _draw(ax, verts, faces, edge, title, limits)
+    center, rotation = _upright_frame(quads_v)
+    sculpt_v = (sculpt[0] - center) @ rotation.T
+    sculpt_f = np.asarray(sculpt[1])
+    quads_up = (quads_v - center) @ rotation.T
+    bent_up = (bent - center) @ rotation.T
+    fig, axes = plt.subplots(1, 2, figsize=(9.2, 6.6), facecolor="white", constrained_layout=True)
+    _draw_side(axes[0], sculpt_v, sculpt_f, quads_up, quads_f, f"环线套在高模上 · {len(quads_f)} 个四边面")
+    _draw_side(axes[1], bent_up, quads_f, bent_up, quads_f, f"再弯 {angle:.0f}°")
     fig.suptitle("高模进来，环线四边面出去", fontsize=16)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
+    fig.savefig(out, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
@@ -578,7 +614,14 @@ def main() -> None:
         plt.close(overlay)
         # Keep the arm preview the README already points at.
         arm = items[0]
-        save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))
+        save_preview(
+            arm[1],
+            arm[2],
+            arm[3],
+            arm[4],
+            args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"),
+            angle=args.bend,
+        )
         write_obj(args.mesh_dir / "sculpt_arm.obj", arm[1][0], arm[1][1])
         write_obj(args.mesh_dir / "retopo_rings.obj", arm[2], arm[3])
         write_obj(args.mesh_dir / "retopo_bent.obj", arm[4], arm[3])
@@ -612,7 +655,7 @@ def main() -> None:
         vertices, faces, n_rings=args.rings, n_around=args.around, axis=chosen_axis
     )
     bent = bend_tube(quads_v, args.bend)
-    save_preview((vertices, faces), quads_v, quads_f, bent, preview)
+    save_preview((vertices, faces), quads_v, quads_f, bent, preview, angle=args.bend)
     save_bend_strip(quads_v, quads_f, strip)
     write_obj(ring_path, quads_v, quads_f)
     write_obj(bent_path, bent, quads_f)
