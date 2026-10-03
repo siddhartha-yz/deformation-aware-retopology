@@ -173,6 +173,16 @@ def style_axes(ax, xlabel: str, ylabel: str) -> None:
     ax.set_axisbelow(True)
 
 
+def write_obj(path: Path, vertices: np.ndarray, quads: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write("# elbow demo mesh\n")
+        for vertex in vertices:
+            handle.write(f"v {vertex[0]:.6f} {vertex[1]:.6f} {vertex[2]:.6f}\n")
+        for face in quads:
+            handle.write(f"f {face[0]+1} {face[1]+1} {face[2]+1} {face[3]+1}\n")
+
+
 def save(fig: plt.Figure, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, dpi=140, bbox_inches="tight", facecolor="white")
@@ -368,6 +378,11 @@ def main() -> None:
     figure_sections(arm, out / "05_sections.png")
     figure_curve(arm, out / "06_curve.png")
     figure_gif(arm, out / "bend.gif")
+    mesh_dir = ROOT / "docs" / "meshes"
+    for label, angle in (("ring", 0.0), ("ring", 90.0), ("diagonal", 90.0)):
+        mesh = arm[label]
+        deformed = lbs(mesh["verts"], mesh["weights"], bend_around_x(angle))
+        write_obj(mesh_dir / f"{label}_{int(angle)}.obj", deformed, mesh["quads"])
     print(f"wrote figures to {out}")
 
 

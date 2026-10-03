@@ -52,6 +52,12 @@ python demo/armbend.py
 
 图写到 `docs/figures/`。看图不需要装 PyTorch。
 
+想放进 Blender 转着看，用这三份模型：
+
+- `docs/meshes/ring_0.obj` 没弯，环线
+- `docs/meshes/ring_90.obj` 弯 90°，环线
+- `docs/meshes/diagonal_90.obj` 弯 90°，斜线
+
 ## 不要指望它做的事
 
 - 不会把雕刻变成能绑骨的低模
