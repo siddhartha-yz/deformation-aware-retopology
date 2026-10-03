@@ -298,17 +298,14 @@ def _draw(ax, vertices: np.ndarray, faces: np.ndarray, edge: str, title: str, li
 
 def save_gallery(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarray]], out: Path) -> None:
     setup_font()
-    fig = plt.figure(figsize=(10.6, 9.6), facecolor="white")
+    fig, axes = plt.subplots(len(items), 2, figsize=(8.6, 12.4), facecolor="white", constrained_layout=True)
     for row, (name, sculpt, quads_v, quads_f, bent) in enumerate(items):
-        limits = bounds_of([sculpt[0], quads_v, bent], pad=0.06)
-        panels = (
-            (sculpt[0], sculpt[1], SCULPT_EDGE, f"{name} · {len(sculpt[1])} 个三角面"),
-            (quads_v, quads_f, QUAD_EDGE, f"{len(quads_f)} 个四边面"),
-            (bent, quads_f, QUAD_EDGE, "弯 90°"),
-        )
-        for col, (verts, faces, edge, title) in enumerate(panels):
-            ax = fig.add_subplot(len(items), 3, row * 3 + col + 1, projection="3d")
-            _draw(ax, verts, faces, edge, title, limits)
+        center, rotation = _upright_frame(quads_v)
+        sculpt_v = (sculpt[0] - center) @ rotation.T
+        quads_up = (quads_v - center) @ rotation.T
+        bent_up = (bent - center) @ rotation.T
+        _draw_side(axes[row, 0], sculpt_v, np.asarray(sculpt[1]), quads_up, quads_f, f"{name} · {len(quads_f)} 个四边面")
+        _draw_side(axes[row, 1], bent_up, quads_f, bent_up, quads_f, "弯 90°")
     fig.suptitle("胳膊、手指、软管，同一套切法", fontsize=16)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")

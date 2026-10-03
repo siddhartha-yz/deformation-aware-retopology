@@ -279,6 +279,7 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
         origin = origin + forward * step
     if len(rings) < 4:
         raise RuntimeError("这个方向上切不出一条细管子")
+    rings = _drop_tilted_ends(rings)
     quads = []
     count = n_around
     for j in range(len(rings) - 1):
@@ -333,6 +334,28 @@ def _straight_rings(vertices: np.ndarray, faces: np.ndarray, origins: list[np.nd
             break
         pos = pos + direction * step
     return rebuilt if len(rebuilt) >= 4 else None
+
+
+def _ring_normal(ring: np.ndarray) -> np.ndarray:
+    _, _, axes = np.linalg.svd(ring - ring.mean(axis=0))
+    return axes[-1]
+
+
+def _drop_tilted_ends(rings: list[np.ndarray], limit_deg: float = 18.0) -> list[np.ndarray]:
+    """Drop a cap ring that slices across the tube instead of around it."""
+
+    def tilted(a: np.ndarray, b: np.ndarray) -> bool:
+        first, second = _ring_normal(a), _ring_normal(b)
+        if float(first @ second) < 0.0:
+            first = -first
+        angle = float(np.degrees(np.arccos(np.clip(first @ second, -1.0, 1.0))))
+        return angle > limit_deg
+
+    while len(rings) >= 5 and tilted(rings[0], rings[1]):
+        rings = rings[1:]
+    while len(rings) >= 5 and tilted(rings[-1], rings[-2]):
+        rings = rings[:-1]
+    return rings
 
 
 def _drop_bridged_rings(rings: list[np.ndarray]) -> list[np.ndarray]:
@@ -417,7 +440,7 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         straight = _straight_rings(vertices, faces, kept_origins, n_rings, n_around, scale)
         if straight is not None:
             rings = straight
-    rings = _drop_bridged_rings(rings)
+    rings = _drop_tilted_ends(_drop_bridged_rings(rings))
     if len(rings) < 2:
         direction = centers[-1] - centers[0]
     else:

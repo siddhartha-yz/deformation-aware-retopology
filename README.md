@@ -40,7 +40,7 @@ python demo/tube_retopo.py --gallery
 
 | 文件 | 是什么 |
 | --- | --- |
-| `docs/figures/08_shapes.png` | 三种样子：高模、环线、弯 90° |
+| `docs/figures/08_shapes.png` | 三种东西：环线套在高模上，以及弯 90° |
 | `docs/figures/09_loops.png` | 环线特写 |
 | `docs/figures/retopo_bend.gif` | 胳膊套完再弯 |
 | `docs/figures/10_curved.png` | 本来就是弯的软管 |
