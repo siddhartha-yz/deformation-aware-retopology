@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from io import BytesIO
 from pathlib import Path
 
 import matplotlib
@@ -17,6 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -152,17 +154,39 @@ def bend_tube(vertices: np.ndarray, angle_deg: float, skin_delta: float = 0.12) 
     return blended
 
 
-def _draw(ax, vertices: np.ndarray, faces: np.ndarray, edge: str, title: str, limits) -> None:
+def stand_up(vertices: np.ndarray) -> np.ndarray:
+    """Put the long axis upright so a side view shows the loops."""
+    center, direction = long_axis(vertices)
+    target = np.array([0.0, 0.0, 1.0])
+    axis = np.cross(direction, target)
+    sine = np.linalg.norm(axis)
+    cosine = float(np.clip(direction @ target, -1.0, 1.0))
+    if sine < 1e-8:
+        rotation = np.eye(3) if cosine > 0 else np.diag([1.0, -1.0, -1.0])
+    else:
+        axis = axis / sine
+        rotation = (
+            cosine * np.eye(3)
+            + sine * np.array([[0.0, -axis[2], axis[1]], [axis[2], 0.0, -axis[0]], [-axis[1], axis[0], 0.0]])
+            + (1.0 - cosine) * np.outer(axis, axis)
+        )
+    return (vertices - center) @ rotation.T
+
+
+def _draw(ax, vertices: np.ndarray, faces: np.ndarray, edge: str, title: str, limits, elev: float = 16, azim: float = -58, linewidth: float | None = None) -> None:
     polygons = [vertices[face] for face in faces]
     colors = shade_quads(vertices, faces) if faces.shape[1] == 4 else np.tile(SKIN, (len(faces), 1))
-    collection = Poly3DCollection(polygons, facecolors=colors, edgecolors=edge, linewidths=0.35 if faces.shape[1] == 4 else 0.05)
+    width = 0.35 if faces.shape[1] == 4 else 0.05
+    if linewidth is not None:
+        width = linewidth
+    collection = Poly3DCollection(polygons, facecolors=colors, edgecolors=edge, linewidths=width)
     ax.add_collection3d(collection)
     center, half = limits
     ax.set_xlim(center[0] - half[0], center[0] + half[0])
     ax.set_ylim(center[1] - half[1], center[1] + half[1])
     ax.set_zlim(center[2] - half[2], center[2] + half[2])
     ax.set_box_aspect(tuple(np.maximum(half, 0.05)))
-    ax.view_init(elev=16, azim=-58)
+    ax.view_init(elev=elev, azim=azim)
     ax.set_axis_off()
     ax.set_title(title, fontsize=13)
 
@@ -184,6 +208,42 @@ def save_gallery(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarra
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
     plt.close(fig)
+
+
+def save_loop_closeup(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarray]], out: Path) -> None:
+    setup_font()
+    fig = plt.figure(figsize=(10.8, 4.2), facecolor="white")
+    for index, (name, _sculpt, quads_v, quads_f, _bent) in enumerate(items, start=1):
+        upright = stand_up(quads_v)
+        band = np.abs(upright[:, 2]) < 0.28 * max(np.ptp(upright[:, 2]), 1e-6)
+        if int(band.sum()) < 12:
+            band = np.ones(len(upright), dtype=bool)
+        limits = bounds_of([upright[band]], pad=0.03)
+        ax = fig.add_subplot(1, len(items), index, projection="3d")
+        _draw(ax, upright, quads_f, QUAD_EDGE, f"{name}的环", limits, elev=8, azim=-90, linewidth=0.7)
+    fig.suptitle("套完之后，边是一圈一圈绕过去的", fontsize=16)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
+def save_bend_gif(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
+    setup_font()
+    angles = list(np.linspace(0, 90, 18)) + list(np.linspace(84, 0, 15))
+    posed = [bend_tube(vertices, float(angle)) for angle in angles]
+    limits = bounds_of(posed, pad=0.08)
+    frames = []
+    for angle, posed_verts in zip(angles, posed):
+        fig = plt.figure(figsize=(4.4, 5.0), facecolor="white")
+        ax = fig.add_subplot(1, 1, 1, projection="3d")
+        _draw(ax, posed_verts, faces, QUAD_EDGE, f"弯 {angle:.0f}°", limits)
+        buffer = BytesIO()
+        fig.savefig(buffer, format="png", dpi=90, bbox_inches="tight", facecolor="white")
+        plt.close(fig)
+        buffer.seek(0)
+        frames.append(Image.open(buffer).convert("RGB"))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    frames[0].save(out, save_all=True, append_images=frames[1:], duration=80, loop=0, optimize=True)
 
 
 def save_preview(sculpt, quads_v, quads_f, bent, out: Path) -> None:
@@ -234,6 +294,8 @@ def main() -> None:
             print(f"{stem} quads={len(quads_f)}")
         gallery = args.out if args.out.name != "07_retopo.png" else args.out.with_name("08_shapes.png")
         save_gallery(items, gallery)
+        save_loop_closeup(items, gallery.with_name("09_loops.png"))
+        save_bend_gif(items[0][2], items[0][3], gallery.with_name("retopo_bend.gif"))
         # Keep the arm preview the README already points at.
         arm = items[0]
         save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))
