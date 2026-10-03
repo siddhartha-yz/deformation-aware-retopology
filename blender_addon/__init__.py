@@ -278,9 +278,9 @@ if RUNNING_IN_BLENDER:
 
 
     class FLOWRETOPO_OT_generate(Operator):
-        """Generate Deformation-Aware Production Quad Retopology"""
+        """沿模型最长的方向套一圈圈四边面"""
         bl_idname = "flowretopo.generate"
-        bl_label = "Generate Retopology"
+        bl_label = "套上环线"
         bl_options = {'REGISTER', 'UNDO'}
         
         def execute(self, context):
@@ -288,34 +288,55 @@ if RUNNING_IN_BLENDER:
             active_obj = context.active_object
             
             if not active_obj or active_obj.type != 'MESH':
-                self.report({'ERROR'}, "Please select a high-poly target mesh object!")
+                self.report({'ERROR'}, "先选中一条高模")
                 return {'CANCELLED'}
-                
+
+            from pathlib import Path
+            addon_dir = str(Path(__file__).resolve().parent)
+            if addon_dir not in sys.path:
+                sys.path.insert(0, addon_dir)
+            from tube import retopo_tube
+
+            mesh = active_obj.data
+            mesh.calc_loop_triangles()
+            matrix = active_obj.matrix_world
+            src_verts = np.array(
+                [[(matrix @ vertex.co).x, (matrix @ vertex.co).y, (matrix @ vertex.co).z] for vertex in mesh.vertices],
+                dtype=np.float64,
+            )
+            src_faces = np.array([tuple(tri.vertices) for tri in mesh.loop_triangles], dtype=np.int32)
+            if len(src_verts) < 10 or len(src_faces) < 10:
+                self.report({'ERROR'}, "模型太小，切不出环")
+                return {'CANCELLED'}
+
             armature_obj = None
             for obj in context.selected_objects:
                 if obj.type == 'ARMATURE':
                     armature_obj = obj
                     break
-            if not armature_obj:
-                for obj in context.scene.objects:
-                    if obj.type == 'ARMATURE':
-                        armature_obj = obj
-                        break
                         
             t0 = time.perf_counter()
-            
-            high_pts, high_nrms = RetopoInferenceEngine.sample_surface_points(active_obj, num_points=2048)
-            joints, joint_names, parents = RetopoInferenceEngine.extract_armature_joints(armature_obj)
-            
-            verts, quads, weights = RetopoInferenceEngine.generate_quad_topology(
-                target_pts=high_pts,
-                joint_positions=joints,
-                num_rings=props.target_rings,
-                radial_seg=props.radial_segments,
-                solver_type=props.solver_type,
-                ode_steps=props.ode_steps,
-                lambda_strain=props.lambda_strain
-            )
+            try:
+                verts, quads, direction = retopo_tube(
+                    src_verts,
+                    src_faces,
+                    n_rings=props.target_rings,
+                    n_around=props.radial_segments,
+                )
+            except RuntimeError as exc:
+                self.report({'ERROR'}, str(exc))
+                return {'CANCELLED'}
+
+            center = verts.mean(axis=0)
+            along = (verts - center) @ direction
+            span = max(float(np.ptp(along)), 1e-6)
+            w_fore = 1.0 / (1.0 + np.exp(-np.clip((-along) / (0.12 * span), -20.0, 20.0)))
+            weights = np.column_stack([1.0 - w_fore, w_fore])
+            joint_names = ["Upper", "Lower"]
+            if armature_obj is not None:
+                bone_names = [bone.name for bone in armature_obj.data.bones]
+                if len(bone_names) >= 2:
+                    joint_names = bone_names[:2]
             
             mesh_name = f"{active_obj.name}_Retopo"
             new_mesh = bpy.data.meshes.new(mesh_name)
@@ -355,7 +376,7 @@ if RUNNING_IN_BLENDER:
 
     class FLOWRETOPO_PT_main_panel(Panel):
         """RetopoFlow-AI 3D Viewport Sidebar Panel"""
-        bl_label = "RetopoFlow-AI: Kinematic Retopo"
+        bl_label = "环线重拓扑"
         bl_idname = "FLOWRETOPO_PT_main_panel"
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'UI'
@@ -366,24 +387,18 @@ if RUNNING_IN_BLENDER:
             props = context.scene.flow_retopo_props
             
             box_mesh = layout.box()
-            box_mesh.label(text="Input Conditioning", icon='MESH_DATA')
+            box_mesh.label(text="选中一条细长的高模", icon='MESH_DATA')
             active = context.active_object
             if active:
-                box_mesh.label(text=f"Target: {active.name} ({active.type})")
+                box_mesh.label(text=f"当前: {active.name}")
             else:
-                box_mesh.label(text="Target: None (Select Mesh)", icon='ERROR')
+                box_mesh.label(text="还没选中模型", icon='ERROR')
                 
             box_res = layout.box()
-            box_res.label(text="Topology Resolution", icon='MOD_REMESH')
-            box_res.prop(props, "target_rings")
-            box_res.prop(props, "radial_segments")
-            
-            box_ode = layout.box()
-            box_ode.label(text="Analytic cylinder lattice", icon='MESH_DATA')
-            box_ode.prop(props, "solver_type")
-            box_ode.prop(props, "ode_steps")
-            box_ode.prop(props, "lambda_strain", text="Strain Alignment λ")
-            box_ode.prop(props, "bind_skinning")
+            box_res.label(text="沿最长的方向切环", icon='MOD_REMESH')
+            box_res.prop(props, "target_rings", text="圈数")
+            box_res.prop(props, "radial_segments", text="每圈几点")
+            box_res.prop(props, "bind_skinning", text="顺便写两根骨头的权重")
             
             layout.separator()
             row = layout.row(align=True)
@@ -392,12 +407,8 @@ if RUNNING_IN_BLENDER:
             
             if props.last_face_count > 0:
                 box_metrics = layout.box()
-                box_metrics.label(text="Quality Verification Scorecard", icon='CHECKMARK')
-                box_metrics.label(text=f"Quad Ratio (Q%): {props.last_quad_ratio:.1f}%")
-                box_metrics.label(text=f"Valence-4 (V4%): {props.last_v4_pct:.1f}%")
-                box_metrics.label(text=f"Total Vertices: {props.last_vert_count}")
-                box_metrics.label(text=f"Total Quads: {props.last_face_count}")
-                box_metrics.label(text=f"Solve Latency: {props.last_time_ms:.1f} ms")
+                box_metrics.label(text=f"顶点 {props.last_vert_count}，四边面 {props.last_face_count}")
+                box_metrics.label(text=f"用时 {props.last_time_ms:.0f} 毫秒")
 
 
     classes = [

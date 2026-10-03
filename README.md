@@ -52,16 +52,35 @@ python demo/armbend.py
 
 图写到 `docs/figures/`。看图不需要装 PyTorch。
 
-想放进 Blender 转着看，用这三份模型：
+## 给自己的模型套环线
 
-- `docs/meshes/ring_0.obj` 没弯，环线
-- `docs/meshes/ring_90.obj` 弯 90°，环线
-- `docs/meshes/diagonal_90.obj` 弯 90°，斜线
+适合胳膊、手指、尾巴、软管这种细长的东西。先做成高模三角面，再：
+
+```bash
+python demo/tube_retopo.py 你的模型.obj --bend 90
+```
+
+没有现成模型就跑内置的一条胳膊：
+
+```bash
+python demo/tube_retopo.py --demo
+```
+
+![高模套上环线再弯](docs/figures/07_retopo.png)
+
+Blender 里也可以：装 `release/` 里的插件，选中模型，侧边栏「环线重拓扑」，点「套上环线」。它沿模型最长的方向切，不会再铺一个包围盒圆柱。
+
+套完的模型在：
+
+- `docs/meshes/sculpt_arm.obj` 高模
+- `docs/meshes/retopo_rings.obj` 环线
+- `docs/meshes/retopo_bent.obj` 弯 90°
+
+前面那组对比用的是另外三份：`ring_0.obj`、`ring_90.obj`、`diagonal_90.obj`。
 
 ## 不要指望它做的事
 
-- 不会把雕刻变成能绑骨的低模
-- 仓库里的 Blender 插件只是按包围盒铺一个圆柱，不是上面这条胳膊
+- 分叉、带手指的身体切不好，它只适合一根管子
 - 早期 README 里的对比分数不能用，说明在 [STATUS.md](STATUS.md)
 
 静止时的整条胳膊：

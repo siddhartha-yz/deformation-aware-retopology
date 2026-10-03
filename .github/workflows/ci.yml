@@ -46,6 +46,9 @@ jobs:
       - name: Arm bend demo smoke test
         run: python demo/armbend.py --quick --out /tmp/armbend
 
+      - name: Tube retopo smoke test
+        run: python demo/tube_retopo.py --demo --out /tmp/retopo.png --mesh-dir /tmp/retopo-meshes
+
       - name: Oracle edge-orientation test
         run: python experiments/oracle_edge_orientation.py
 

@@ -1,0 +1,174 @@
+#!/usr/bin/env python3
+"""Put quad rings on a tube-shaped mesh and bend the result.
+
+    python demo/tube_retopo.py --demo
+    python demo/tube_retopo.py path/to/limb.obj --bend 90
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "blender_addon"))
+
+from blender_addon.tube import long_axis, retopo_tube  # noqa: E402
+from demo.armbend import bounds_of, make_arm, setup_font, shade_quads  # noqa: E402
+from experiments.oracle_section_area import bend_around_x, lbs, sigmoid_weights  # noqa: E402
+
+SKIN = np.array([0.93, 0.76, 0.62])
+SCULPT_EDGE = "#D6B49A"
+QUAD_EDGE = "#6B4A36"
+
+
+def read_obj(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    vertices = []
+    faces = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("v "):
+            vertices.append([float(item) for item in line.split()[1:4]])
+        elif line.startswith("f "):
+            corners = []
+            for item in line.split()[1:]:
+                corners.append(int(item.split("/")[0]) - 1)
+            if len(corners) == 3:
+                faces.append(corners)
+            elif len(corners) == 4:
+                faces.append([corners[0], corners[1], corners[2]])
+                faces.append([corners[0], corners[2], corners[3]])
+    if not vertices or not faces:
+        raise RuntimeError(f"{path} 里没有三角形")
+    return np.asarray(vertices, dtype=np.float64), np.asarray(faces, dtype=np.int32)
+
+
+def write_obj(path: Path, vertices: np.ndarray, faces: np.ndarray) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        handle.write("# tube retopo\n")
+        for vertex in vertices:
+            handle.write(f"v {vertex[0]:.6f} {vertex[1]:.6f} {vertex[2]:.6f}\n")
+        sides = faces.shape[1]
+        for face in faces:
+            ids = " ".join(str(int(index) + 1) for index in face[:sides])
+            handle.write(f"f {ids}\n")
+
+
+def sculpt_arm() -> tuple[np.ndarray, np.ndarray]:
+    """Dense triangle arm, tilted so it is not lined up with the world axis."""
+    vertices, quads, _weights = make_arm(n_along=64, n_around=32, diagonal=False)
+    z = vertices[:, 2]
+    vertices = vertices.copy()
+    vertices[:, 0] += 0.03 * np.exp(-((z - 0.0) / 0.12) ** 2)
+    faces = []
+    for quad in quads:
+        faces.append([quad[0], quad[1], quad[2]])
+        faces.append([quad[0], quad[2], quad[3]])
+    tilt = np.radians(28.0)
+    rotation = np.array(
+        [
+            [np.cos(tilt), 0.0, np.sin(tilt)],
+            [0.0, 1.0, 0.0],
+            [-np.sin(tilt), 0.0, np.cos(tilt)],
+        ]
+    )
+    return vertices @ rotation.T, np.asarray(faces, dtype=np.int32)
+
+
+def bend_tube(vertices: np.ndarray, angle_deg: float, skin_delta: float = 0.12) -> np.ndarray:
+    center, direction = long_axis(vertices)
+    along = (vertices - center) @ direction
+    weights = sigmoid_weights(-along, skin_delta * float(np.ptp(along)))
+    helper = np.array([1.0, 0.0, 0.0]) if abs(direction[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+    hinge = np.cross(direction, helper)
+    hinge = hinge / np.linalg.norm(hinge)
+    theta = np.radians(angle_deg)
+    cosine, sine = np.cos(theta), np.sin(theta)
+    # Rodrigues rotation about the hinge through the mesh center.
+    rotation = (
+        cosine * np.eye(3)
+        + sine * np.array(
+            [
+                [0.0, -hinge[2], hinge[1]],
+                [hinge[2], 0.0, -hinge[0]],
+                [-hinge[1], hinge[0], 0.0],
+            ]
+        )
+        + (1.0 - cosine) * np.outer(hinge, hinge)
+    )
+    moved = (vertices - center) @ rotation.T + center
+    blended = (1.0 - weights[:, 1:2]) * vertices + weights[:, 1:2] * moved
+    return blended
+
+
+def _draw(ax, vertices: np.ndarray, faces: np.ndarray, edge: str, title: str, limits) -> None:
+    polygons = [vertices[face] for face in faces]
+    colors = shade_quads(vertices, faces) if faces.shape[1] == 4 else np.tile(SKIN, (len(faces), 1))
+    collection = Poly3DCollection(polygons, facecolors=colors, edgecolors=edge, linewidths=0.35 if faces.shape[1] == 4 else 0.05)
+    ax.add_collection3d(collection)
+    center, half = limits
+    ax.set_xlim(center[0] - half[0], center[0] + half[0])
+    ax.set_ylim(center[1] - half[1], center[1] + half[1])
+    ax.set_zlim(center[2] - half[2], center[2] + half[2])
+    ax.set_box_aspect(tuple(np.maximum(half, 0.05)))
+    ax.view_init(elev=16, azim=-58)
+    ax.set_axis_off()
+    ax.set_title(title, fontsize=13)
+
+
+def save_preview(sculpt, quads_v, quads_f, bent, out: Path) -> None:
+    setup_font()
+    limits = bounds_of([sculpt[0], quads_v, bent], pad=0.08)
+    fig = plt.figure(figsize=(11.4, 4.4), facecolor="white")
+    panels = (
+        (sculpt[0], sculpt[1], SCULPT_EDGE, "高模"),
+        (quads_v, quads_f, QUAD_EDGE, "套上环线"),
+        (bent, quads_f, QUAD_EDGE, "再弯 90°"),
+    )
+    for index, (verts, faces, edge, title) in enumerate(panels, start=1):
+        ax = fig.add_subplot(1, 3, index, projection="3d")
+        _draw(ax, verts, faces, edge, title, limits)
+    fig.suptitle("高模进来，环线四边面出去", fontsize=16)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="给管子形状的模型套环线四边面")
+    parser.add_argument("mesh", nargs="?", type=Path)
+    parser.add_argument("--demo", action="store_true", help="用内置的一条胳膊高模")
+    parser.add_argument("--rings", type=int, default=26)
+    parser.add_argument("--around", type=int, default=16)
+    parser.add_argument("--bend", type=float, default=90.0)
+    parser.add_argument("--out", type=Path, default=ROOT / "docs" / "figures" / "07_retopo.png")
+    parser.add_argument("--mesh-dir", type=Path, default=ROOT / "docs" / "meshes")
+    args = parser.parse_args()
+
+    if args.demo or args.mesh is None:
+        vertices, faces = sculpt_arm()
+        sculpt_path = args.mesh_dir / "sculpt_arm.obj"
+        write_obj(sculpt_path, vertices, faces)
+    else:
+        vertices, faces = read_obj(args.mesh)
+
+    quads_v, quads_f, _axis = retopo_tube(vertices, faces, n_rings=args.rings, n_around=args.around)
+    bent = bend_tube(quads_v, args.bend)
+    save_preview((vertices, faces), quads_v, quads_f, bent, args.out)
+    write_obj(args.mesh_dir / "retopo_rings.obj", quads_v, quads_f)
+    write_obj(args.mesh_dir / "retopo_bent.obj", bent, quads_f)
+    print(f"quads={len(quads_f)} verts={len(quads_v)}")
+    print(args.out)
+
+
+if __name__ == "__main__":
+    main()
