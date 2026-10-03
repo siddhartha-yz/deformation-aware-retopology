@@ -329,16 +329,25 @@ def save_loop_closeup(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.n
     plt.close(fig)
 
 
+def _posed_upright(vertices: np.ndarray, angle: float, center: np.ndarray, rotation: np.ndarray) -> np.ndarray:
+    posed = vertices if angle == 0 else bend_tube(vertices, angle)
+    return (posed - center) @ rotation.T
+
+
 def save_bend_gif(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
     setup_font()
     angles = list(np.linspace(0, 90, 18)) + list(np.linspace(84, 0, 15))
-    posed = [bend_tube(vertices, float(angle)) for angle in angles]
-    limits = bounds_of(posed, pad=0.08)
+    center, rotation = _upright_frame(vertices)
+    posed = [_posed_upright(vertices, float(angle), center, rotation) for angle in angles]
+    span = np.concatenate(posed, axis=0)
+    pad = 0.08 * max(float(np.ptp(span[:, 0])), float(np.ptp(span[:, 2])), 1e-6)
+    limits = (float(span[:, 0].min()) - pad, float(span[:, 0].max()) + pad, float(span[:, 2].min()) - pad, float(span[:, 2].max()) + pad)
     frames = []
     for angle, posed_verts in zip(angles, posed):
-        fig = plt.figure(figsize=(4.4, 5.0), facecolor="white")
-        ax = fig.add_subplot(1, 1, 1, projection="3d")
-        _draw(ax, posed_verts, faces, QUAD_EDGE, f"弯 {angle:.0f}°", limits)
+        fig, ax = plt.subplots(figsize=(4.6, 5.2), facecolor="white")
+        _draw_side(ax, posed_verts, faces, posed_verts, faces, f"弯 {angle:.0f}°")
+        ax.set_xlim(limits[0], limits[1])
+        ax.set_ylim(limits[2], limits[3])
         buffer = BytesIO()
         fig.savefig(buffer, format="png", dpi=90, bbox_inches="tight", facecolor="white")
         plt.close(fig)
@@ -351,12 +360,11 @@ def save_bend_gif(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
 def save_bend_strip(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
     setup_font()
     angles = [0, 45, 90, 120]
-    posed = [vertices if angle == 0 else bend_tube(vertices, angle) for angle in angles]
-    limits = bounds_of(posed, pad=0.08)
-    fig = plt.figure(figsize=(12.2, 4.4), facecolor="white")
-    for index, (angle, posed_verts) in enumerate(zip(angles, posed), start=1):
-        ax = fig.add_subplot(1, 4, index, projection="3d")
-        _draw(ax, posed_verts, faces, QUAD_EDGE, f"弯 {angle}°", limits)
+    center, rotation = _upright_frame(vertices)
+    fig, axes = plt.subplots(1, 4, figsize=(12.6, 4.6), facecolor="white", constrained_layout=True)
+    for ax, angle in zip(axes, angles):
+        posed = _posed_upright(vertices, angle, center, rotation)
+        _draw_side(ax, posed, faces, posed, faces, f"弯 {angle}°")
     fig.suptitle("套完之后可以这样弯", fontsize=16)
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
