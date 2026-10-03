@@ -106,6 +106,10 @@ python demo/tube_retopo.py 你的模型.obj --axis -1,0,0
 
 ![两条胳膊](docs/figures/17_two_arms.png)
 
+两次的结果套回身子上：
+
+![套回原位](docs/figures/18_both_on_body.png)
+
 ## 在 Blender 里
 
 1. 安装 `release/retopo_flow_blender_addon_v1.0.0.zip`（和命令行是同一套切法）

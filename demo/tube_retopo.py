@@ -531,6 +531,26 @@ def main() -> None:
         both_fig.suptitle("两条胳膊要切两次", fontsize=16)
         both_fig.savefig(gallery.with_name("17_two_arms.png"), dpi=140, bbox_inches="tight", facecolor="white")
         plt.close(both_fig)
+        overlay, ax = plt.subplots(figsize=(6.4, 7.2), facecolor="white")
+
+        def _flat(points):
+            return np.column_stack([points[:, 0] + 0.42 * points[:, 1], points[:, 2] + 0.22 * points[:, 1]])
+
+        body_xy = _flat(both_v)
+        order = np.argsort(both_v[both_f].mean(axis=1)[:, 1])
+        for face in both_f[order]:
+            poly = body_xy[face]
+            ax.fill(poly[:, 0], poly[:, 1], color="#F3D7C3", edgecolor="#E7C4A8", linewidth=0.15, zorder=1)
+        for limb_v, limb_f, edge in ((right_v, right_f, "#C2410C"), (left_v, left_f, "#1D4ED8")):
+            flat = _flat(limb_v)
+            for face in limb_f:
+                loop = flat[list(face) + [face[0]]]
+                ax.plot(loop[:, 0], loop[:, 1], color=edge, linewidth=1.15, solid_capstyle="round", zorder=3)
+        ax.set_title("两次切完，线套在胳膊上", fontsize=15, pad=8)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        overlay.savefig(gallery.with_name("18_both_on_body.png"), dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(overlay)
         # Keep the arm preview the README already points at.
         arm = items[0]
         save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))
