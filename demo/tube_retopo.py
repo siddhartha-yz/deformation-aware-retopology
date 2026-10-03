@@ -36,20 +36,26 @@ QUAD_EDGE = "#6B4A36"
 def read_obj(path: Path) -> tuple[np.ndarray, np.ndarray]:
     vertices = []
     faces = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         if line.startswith("v "):
             vertices.append([float(item) for item in line.split()[1:4]])
         elif line.startswith("f "):
             corners = []
             for item in line.split()[1:]:
-                corners.append(int(item.split("/")[0]) - 1)
-            if len(corners) == 3:
-                faces.append(corners)
-            elif len(corners) == 4:
-                faces.append([corners[0], corners[1], corners[2]])
-                faces.append([corners[0], corners[2], corners[3]])
+                raw = item.split("/")[0]
+                if not raw:
+                    continue
+                index = int(raw)
+                if index > 0:
+                    corners.append(index - 1)
+                elif index < 0:
+                    corners.append(len(vertices) + index)
+            if len(corners) < 3:
+                continue
+            for offset in range(1, len(corners) - 1):
+                faces.append([corners[0], corners[offset], corners[offset + 1]])
     if not vertices or not faces:
-        raise RuntimeError(f"{path} 里没有三角形")
+        raise RuntimeError(f"{path} 里没有能用的面")
     return np.asarray(vertices, dtype=np.float64), np.asarray(faces, dtype=np.int32)
 
 
@@ -476,6 +482,15 @@ def main() -> None:
             raise SystemExit("自动切法从身子拐进了胳膊")
         if 0 not in missed_directions(one_v, one_cut):
             raise SystemExit("身子加一条胳膊时应该提示左右还没切完")
+        messy = Path("/tmp/retopo_negative_face.obj")
+        messy.write_text(
+            "vt 0 0\nvn 0 0 1\nv 0 0 -1\nv 0.2 0 -1\nv 0.2 0.2 -1\nv 0 0.2 -1\n"
+            "f -4/-1/-1 -3/-1/-1 -2/-1/-1 -1/-1/-1\n",
+            encoding="utf-8",
+        )
+        read_v, read_f = read_obj(messy)
+        if len(read_v) != 4 or len(read_f) != 2 or int(read_f.min()) < 0:
+            raise SystemExit(f"负索引的四边面没有读对: verts={len(read_v)} faces={read_f}")
         print(f"ok 胳膊四边面 {len(arm_f)} 个")
         return
 
