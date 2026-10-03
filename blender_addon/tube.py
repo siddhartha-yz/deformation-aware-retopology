@@ -234,5 +234,11 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
             v1 = j * count + nxt
             v2 = (j + 1) * count + nxt
             v3 = (j + 1) * count + i
-            quads.append([v0, v1, v2, v3])
+            pts = np.stack([rings[j][i], rings[j][nxt], rings[j + 1][nxt], rings[j + 1][i]])
+            normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            outward = pts.mean(axis=0) - 0.5 * (rings[j].mean(axis=0) + rings[j + 1].mean(axis=0))
+            if float(normal @ outward) < 0.0:
+                quads.append([v0, v3, v2, v1])
+            else:
+                quads.append([v0, v1, v2, v3])
     return np.vstack(rings), np.asarray(quads, dtype=np.int32), direction

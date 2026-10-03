@@ -8,6 +8,8 @@
 
 ![环线特写](docs/figures/09_loops.png)
 
+![胳膊肘特写](docs/figures/11_arm_close.png)
+
 胳膊套完之后弯下去：
 
 ![套完再弯](docs/figures/retopo_bend.gif)

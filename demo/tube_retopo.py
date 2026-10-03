@@ -338,6 +338,23 @@ def main() -> None:
         gallery = args.out if args.out.name != "07_retopo.png" else args.out.with_name("08_shapes.png")
         save_gallery(items, gallery)
         save_loop_closeup(items, gallery.with_name("09_loops.png"))
+        arm_up = stand_up(items[0][2])
+        elbow = np.abs(arm_up[:, 2]) < 0.22 * max(float(np.ptp(arm_up[:, 2])), 1e-6)
+        close = plt.figure(figsize=(6.4, 7.2), facecolor="white")
+        ax = close.add_subplot(1, 1, 1, projection="3d")
+        _draw(
+            ax,
+            arm_up,
+            items[0][3],
+            QUAD_EDGE,
+            "胳膊肘这一段",
+            bounds_of([arm_up[elbow]], pad=0.02),
+            elev=8,
+            azim=-90,
+            linewidth=1.1,
+        )
+        close.savefig(gallery.with_name("11_arm_close.png"), dpi=160, bbox_inches="tight", facecolor="white")
+        plt.close(close)
         save_bend_gif(items[0][2], items[0][3], gallery.with_name("retopo_bend.gif"))
         curved_v, curved_f = sculpt_curved()
         curved_q, curved_faces, _axis = retopo_tube(curved_v, curved_f, n_rings=args.rings, n_around=args.around)
