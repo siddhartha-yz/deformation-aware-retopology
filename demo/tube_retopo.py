@@ -410,6 +410,12 @@ def main() -> None:
             raise SystemExit("自动切法把两条胳膊连到一起了")
         if 0 not in missed_directions(both_v, auto_v):
             raise SystemExit("两条胳膊时应该提示左右还没切完")
+        one_v, one_f = sculpt_body(False)
+        one_cut, _one_faces, _one_axis = retopo_tube(one_v, one_f, n_rings=18, n_around=12)
+        if float(one_cut[:, 0].max()) > 0.6:
+            raise SystemExit("自动切法从身子拐进了胳膊")
+        if 0 not in missed_directions(one_v, one_cut):
+            raise SystemExit("身子加一条胳膊时应该提示左右还没切完")
         print(f"ok 胳膊四边面 {len(arm_f)} 个")
         return
 

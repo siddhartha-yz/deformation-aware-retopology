@@ -362,6 +362,8 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
                 normal = normal / norm
                 bitangent = np.cross(tangent, normal)
         segments = _segment_hits(vertices, faces, origin, tangent)
+        if len(_all_loops(segments, scale)) > 1 and len(rings) >= 4:
+            break
         loop = _stitch_loop(segments, scale)
         if loop is None:
             continue

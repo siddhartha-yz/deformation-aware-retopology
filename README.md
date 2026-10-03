@@ -81,7 +81,7 @@ python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 
 圈数和每圈点数按模型粗细改。太细的手指可以把 `--around` 降到 12。
 
-不写方向时，顺着最长的那根切。身子两边都有胳膊时，它只留一侧，并告诉你左右还没切完。想指定一根：
+不写方向时，顺着最长的那根切。身子上伸出胳膊时，它停在肩膀，并告诉你左右还没切完。想指定一根：
 
 ```bash
 python demo/tube_retopo.py 你的模型.obj --axis 1,0,0
