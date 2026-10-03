@@ -102,6 +102,8 @@ python demo/tube_retopo.py 你的模型.obj --axis 1,0,0
 python demo/tube_retopo.py 你的模型.obj --axis -1,0,0
 ```
 
+两次的文件名不一样：`你的模型_x_rings.obj` 和 `你的模型_nx_rings.obj`。向上是 `_z`，向下是 `_nz`。
+
 ![两条胳膊](docs/figures/17_two_arms.png)
 
 ## 在 Blender 里

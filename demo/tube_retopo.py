@@ -540,6 +540,13 @@ def main() -> None:
         print(gallery)
         return
 
+    chosen_axis = None
+    axis_tag = ""
+    if args.axis:
+        chosen_axis = np.array([float(part) for part in args.axis.split(",")], dtype=np.float64)
+        dominant = int(np.argmax(np.abs(chosen_axis)))
+        axis_tag = f"_{'xyz'[dominant]}" if chosen_axis[dominant] >= 0 else f"_n{'xyz'[dominant]}"
+
     if args.demo or args.mesh is None:
         mesh_dir = args.mesh_dir or demo_mesh_dir
         preview = args.out or figure_dir / "07_retopo.png"
@@ -550,15 +557,12 @@ def main() -> None:
         strip = figure_dir / "14_bend_strip.png" if args.out is None else preview.with_name("bend_strip.png")
     else:
         mesh_dir = args.mesh_dir or args.mesh.parent
-        preview = args.out or mesh_dir / f"{args.mesh.stem}_preview.png"
+        stem = f"{args.mesh.stem}{axis_tag}"
+        preview = args.out or mesh_dir / f"{stem}_preview.png"
         vertices, faces = read_obj(args.mesh)
-        ring_path = mesh_dir / f"{args.mesh.stem}_rings.obj"
-        bent_path = mesh_dir / f"{args.mesh.stem}_bent.obj"
-        strip = mesh_dir / f"{args.mesh.stem}_bend.png"
-
-    chosen_axis = None
-    if args.axis:
-        chosen_axis = np.array([float(part) for part in args.axis.split(",")], dtype=np.float64)
+        ring_path = mesh_dir / f"{stem}_rings.obj"
+        bent_path = mesh_dir / f"{stem}_bent.obj"
+        strip = mesh_dir / f"{stem}_bend.png"
     quads_v, quads_f, _axis = retopo_tube(
         vertices, faces, n_rings=args.rings, n_around=args.around, axis=chosen_axis
     )
