@@ -605,20 +605,29 @@ def main() -> None:
         write_obj(args.mesh_dir / "both_sculpt.obj", both_v, both_f)
         write_obj(args.mesh_dir / "both_right.obj", right_v, right_f)
         write_obj(args.mesh_dir / "both_left.obj", left_v, left_f)
-        both_limits = bounds_of([both_v, right_v, left_v], pad=0.08)
-        both_fig = plt.figure(figsize=(10.4, 4.2), facecolor="white")
-        for index, (verts, faces, edge, title) in enumerate(
-            (
-                (both_v, both_f, SCULPT_EDGE, "左右各一条"),
-                (right_v, right_f, QUAD_EDGE, "方向 1,0,0 右手"),
-                (left_v, left_f, QUAD_EDGE, "方向 -1,0,0 左手"),
-            ),
-            start=1,
+        both_fig, both_axes = plt.subplots(1, 2, figsize=(9.4, 7.2), facecolor="white")
+        body_xy = np.column_stack([both_v[:, 0], both_v[:, 2]])
+        body_order = np.argsort(both_v[both_f].mean(axis=1)[:, 1])
+        for ax, limb_v, limb_f, edge, title in (
+            (both_axes[0], right_v, right_f, "#C2410C", "向右 1,0,0"),
+            (both_axes[1], left_v, left_f, "#1D4ED8", "向左 -1,0,0"),
         ):
-            ax = both_fig.add_subplot(1, 3, index, projection="3d")
-            _draw(ax, verts, faces, edge, title, both_limits)
+            for face in both_f[body_order]:
+                poly = body_xy[face]
+                ax.fill(poly[:, 0], poly[:, 1], color="#F3D7C3", edgecolor="#E7C4A8", linewidth=0.12, zorder=1)
+            wire = np.column_stack([limb_v[:, 0], limb_v[:, 2]])
+            for face in limb_f:
+                pts = limb_v[list(face)]
+                normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+                if float(normal[1]) <= 0.0:
+                    continue
+                loop = wire[list(face) + [int(face[0])]]
+                ax.plot(loop[:, 0], loop[:, 1], color=edge, linewidth=1.2, solid_capstyle="round", zorder=3)
+            ax.set_title(title, fontsize=14, pad=8)
+            ax.set_aspect("equal")
+            ax.axis("off")
         both_fig.suptitle("两条胳膊要切两次", fontsize=16)
-        both_fig.savefig(gallery.with_name("17_two_arms.png"), dpi=140, bbox_inches="tight", facecolor="white")
+        both_fig.savefig(gallery.with_name("17_two_arms.png"), dpi=150, bbox_inches="tight", facecolor="white")
         plt.close(both_fig)
         overlay, ax = plt.subplots(figsize=(6.4, 7.2), facecolor="white")
 
