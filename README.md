@@ -64,7 +64,12 @@ python demo/tube_retopo.py 你的模型.obj --bend 90
 
 ```bash
 python demo/tube_retopo.py --demo
+python demo/tube_retopo.py --gallery
 ```
+
+`--gallery` 会把胳膊、手指、软管各做一遍。
+
+![三种管子](docs/figures/08_shapes.png)
 
 ![高模套上环线再弯](docs/figures/07_retopo.png)
 

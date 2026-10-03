@@ -63,6 +63,48 @@ def write_obj(path: Path, vertices: np.ndarray, faces: np.ndarray) -> None:
             handle.write(f"f {ids}\n")
 
 
+def tube_from_profile(knots_z: np.ndarray, knots_r: np.ndarray, n_along: int, n_around: int, tilt_deg: float) -> tuple[np.ndarray, np.ndarray]:
+    zs = np.linspace(float(knots_z[0]), float(knots_z[-1]), n_along)
+    radii = np.interp(zs, knots_z, knots_r)
+    vertices = []
+    for z, radius in zip(zs, radii):
+        for i in range(n_around):
+            theta = 2.0 * np.pi * i / n_around
+            vertices.append([radius * np.cos(theta), radius * np.sin(theta), z])
+    vertices_a = np.asarray(vertices, dtype=np.float64)
+    faces = []
+    for j in range(n_along - 1):
+        for i in range(n_around):
+            nxt = (i + 1) % n_around
+            v0 = j * n_around + i
+            v1 = j * n_around + nxt
+            v2 = (j + 1) * n_around + nxt
+            v3 = (j + 1) * n_around + i
+            faces.append([v0, v1, v2])
+            faces.append([v0, v2, v3])
+    tilt = np.radians(tilt_deg)
+    rotation = np.array(
+        [
+            [np.cos(tilt), 0.0, np.sin(tilt)],
+            [0.0, 1.0, 0.0],
+            [-np.sin(tilt), 0.0, np.cos(tilt)],
+        ]
+    )
+    return vertices_a @ rotation.T, np.asarray(faces, dtype=np.int32)
+
+
+def sculpt_finger() -> tuple[np.ndarray, np.ndarray]:
+    knots_z = np.array([-0.9, -0.55, -0.35, -0.05, 0.2, 0.55, 0.9])
+    knots_r = np.array([0.055, 0.07, 0.09, 0.062, 0.085, 0.07, 0.05])
+    return tube_from_profile(knots_z, knots_r, 56, 20, 18.0)
+
+
+def sculpt_hose() -> tuple[np.ndarray, np.ndarray]:
+    knots_z = np.array([-1.3, -0.4, -0.15, 0.0, 0.15, 0.5, 1.3])
+    knots_r = np.array([0.11, 0.11, 0.16, 0.18, 0.16, 0.11, 0.11])
+    return tube_from_profile(knots_z, knots_r, 60, 22, -22.0)
+
+
 def sculpt_arm() -> tuple[np.ndarray, np.ndarray]:
     """Dense triangle arm, tilted so it is not lined up with the world axis."""
     vertices, quads, _weights = make_arm(n_along=64, n_around=32, diagonal=False)
@@ -125,6 +167,25 @@ def _draw(ax, vertices: np.ndarray, faces: np.ndarray, edge: str, title: str, li
     ax.set_title(title, fontsize=13)
 
 
+def save_gallery(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarray]], out: Path) -> None:
+    setup_font()
+    fig = plt.figure(figsize=(10.6, 9.6), facecolor="white")
+    for row, (name, sculpt, quads_v, quads_f, bent) in enumerate(items):
+        limits = bounds_of([sculpt[0], quads_v, bent], pad=0.06)
+        panels = (
+            (sculpt[0], sculpt[1], SCULPT_EDGE, f"{name} · 高模"),
+            (quads_v, quads_f, QUAD_EDGE, "环线"),
+            (bent, quads_f, QUAD_EDGE, "弯 90°"),
+        )
+        for col, (verts, faces, edge, title) in enumerate(panels):
+            ax = fig.add_subplot(len(items), 3, row * 3 + col + 1, projection="3d")
+            _draw(ax, verts, faces, edge, title, limits)
+    fig.suptitle("胳膊、手指、软管，同一套切法", fontsize=16)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
 def save_preview(sculpt, quads_v, quads_f, bent, out: Path) -> None:
     setup_font()
     limits = bounds_of([sculpt[0], quads_v, bent], pad=0.08)
@@ -147,6 +208,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="给管子形状的模型套环线四边面")
     parser.add_argument("mesh", nargs="?", type=Path)
     parser.add_argument("--demo", action="store_true", help="用内置的一条胳膊高模")
+    parser.add_argument("--gallery", action="store_true", help="胳膊、手指、软管各做一遍")
     parser.add_argument("--rings", type=int, default=26)
     parser.add_argument("--around", type=int, default=16)
     parser.add_argument("--bend", type=float, default=90.0)
@@ -154,10 +216,36 @@ def main() -> None:
     parser.add_argument("--mesh-dir", type=Path, default=ROOT / "docs" / "meshes")
     args = parser.parse_args()
 
+    if args.gallery:
+        specs = (
+            ("胳膊", sculpt_arm, "arm"),
+            ("手指", sculpt_finger, "finger"),
+            ("软管", sculpt_hose, "hose"),
+        )
+        items = []
+        for title, builder, stem in specs:
+            vertices, faces = builder()
+            quads_v, quads_f, _axis = retopo_tube(vertices, faces, n_rings=args.rings, n_around=args.around)
+            bent = bend_tube(quads_v, args.bend)
+            write_obj(args.mesh_dir / f"{stem}_sculpt.obj", vertices, faces)
+            write_obj(args.mesh_dir / f"{stem}_rings.obj", quads_v, quads_f)
+            write_obj(args.mesh_dir / f"{stem}_bent.obj", bent, quads_f)
+            items.append((title, (vertices, faces), quads_v, quads_f, bent))
+            print(f"{stem} quads={len(quads_f)}")
+        gallery = args.out if args.out.name != "07_retopo.png" else args.out.with_name("08_shapes.png")
+        save_gallery(items, gallery)
+        # Keep the arm preview the README already points at.
+        arm = items[0]
+        save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))
+        write_obj(args.mesh_dir / "sculpt_arm.obj", arm[1][0], arm[1][1])
+        write_obj(args.mesh_dir / "retopo_rings.obj", arm[2], arm[3])
+        write_obj(args.mesh_dir / "retopo_bent.obj", arm[4], arm[3])
+        print(gallery)
+        return
+
     if args.demo or args.mesh is None:
         vertices, faces = sculpt_arm()
-        sculpt_path = args.mesh_dir / "sculpt_arm.obj"
-        write_obj(sculpt_path, vertices, faces)
+        write_obj(args.mesh_dir / "sculpt_arm.obj", vertices, faces)
     else:
         vertices, faces = read_obj(args.mesh)
 
