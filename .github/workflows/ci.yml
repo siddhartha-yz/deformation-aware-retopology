@@ -49,6 +49,9 @@ jobs:
       - name: Tube retopo smoke test
         run: python demo/tube_retopo.py --demo --out /tmp/retopo.png --mesh-dir /tmp/retopo-meshes
 
+      - name: Aimed limb cut stays on the arm
+        run: python demo/tube_retopo.py --check
+
       - name: Oracle edge-orientation test
         run: python experiments/oracle_edge_orientation.py
 

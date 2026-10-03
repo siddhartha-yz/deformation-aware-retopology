@@ -358,6 +358,7 @@ def main() -> None:
     parser.add_argument("mesh", nargs="?", type=Path)
     parser.add_argument("--demo", action="store_true", help="用内置的一条胳膊高模")
     parser.add_argument("--gallery", action="store_true", help="胳膊、手指、软管各做一遍")
+    parser.add_argument("--check", action="store_true", help="检查指定方向时切出来的是胳膊")
     parser.add_argument("--rings", type=int, default=26)
     parser.add_argument("--around", type=int, default=16)
     parser.add_argument("--bend", type=float, default=90.0)
@@ -365,6 +366,15 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--mesh-dir", type=Path, default=None)
     args = parser.parse_args()
+
+    if args.check:
+        body_v, body_f = sculpt_body()
+        arm_v, arm_f, _ = retopo_tube(body_v, body_f, n_rings=18, n_around=12, axis=np.array([1.0, 0.0, 0.0]))
+        extent = arm_v.max(axis=0) - arm_v.min(axis=0)
+        if not (extent[0] > extent[1] * 2 and extent[0] > extent[2] * 2 and len(arm_f) >= 48):
+            raise SystemExit(f"指定方向没有切出胳膊: extent={extent} faces={len(arm_f)}")
+        print(f"ok 胳膊四边面 {len(arm_f)} 个")
+        return
 
     figure_dir = ROOT / "docs" / "figures"
     demo_mesh_dir = ROOT / "docs" / "meshes"
@@ -450,6 +460,21 @@ def main() -> None:
         body_fig.suptitle("想切哪根，就告诉它方向", fontsize=16)
         body_fig.savefig(gallery.with_name("12_aim.png"), dpi=140, bbox_inches="tight", facecolor="white")
         plt.close(body_fig)
+        arm_only = body_v[body_v[:, 0] > 0.35]
+        aim_limits = bounds_of([arm_only, body_arm], pad=0.04)
+        aim_fig = plt.figure(figsize=(8.4, 4.4), facecolor="white")
+        for index, (verts, faces, edge, title) in enumerate(
+            (
+                (body_v, body_f, SCULPT_EDGE, "胳膊那一段"),
+                (body_arm, body_arm_f, QUAD_EDGE, f"切出来 · {len(body_arm_f)} 个四边面"),
+            ),
+            start=1,
+        ):
+            ax = aim_fig.add_subplot(1, 2, index, projection="3d")
+            _draw(ax, verts, faces, edge, title, aim_limits, elev=12, azim=-70, linewidth=0.8)
+        aim_fig.suptitle("指定向右之后，只剩这条胳膊", fontsize=16)
+        aim_fig.savefig(gallery.with_name("13_arm_only.png"), dpi=150, bbox_inches="tight", facecolor="white")
+        plt.close(aim_fig)
         print(f"body auto={len(body_default_f)} arm={len(body_arm_f)}")
         # Keep the arm preview the README already points at.
         arm = items[0]
