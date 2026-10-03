@@ -104,7 +104,11 @@ def _stitch_loop(segments: list[tuple[np.ndarray, np.ndarray]], scale: float) ->
 
 
 def _resample_ring(loop: np.ndarray, origin: np.ndarray, direction: np.ndarray, tangent: np.ndarray, bitangent: np.ndarray, count: int) -> np.ndarray:
-    offset = loop - origin
+    # Angle around the middle of this cut, not the centerline guess. An off-center
+    # guess packs points on one side and leaves long skinny quads.
+    centroid = loop.mean(axis=0)
+    centroid = centroid - direction * float(np.dot(centroid - origin, direction))
+    offset = loop - centroid
     flat = offset - np.outer(offset @ direction, direction)
     angles = np.arctan2(flat @ bitangent, flat @ tangent)
     order = np.argsort(angles)
@@ -212,7 +216,11 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         loop = _stitch_loop(segments, scale)
         if loop is None:
             continue
-        rings.append(_resample_ring(loop, origin, tangent, normal, bitangent, n_around))
+        ring = _resample_ring(loop, origin, tangent, normal, bitangent, n_around)
+        edges = np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)
+        if float(edges.min()) < 0.35 * float(np.median(edges)):
+            continue
+        rings.append(ring)
     direction = centers[-1] - centers[0]
     direction = direction / max(float(np.linalg.norm(direction)), 1e-8)
     if len(rings) < 4:
