@@ -62,11 +62,11 @@ OBJ 可以是三角面，也可以是四边面。
 python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 ```
 
-结果：
+结果写在模型旁边，不会盖掉仓库里的例子：
 
-- `docs/figures/07_retopo.png`
-- `docs/meshes/retopo_rings.obj`
-- `docs/meshes/retopo_bent.obj`
+- `你的模型_preview.png`
+- `你的模型_rings.obj`
+- `你的模型_bent.obj`
 
 圈数和每圈点数按模型粗细改。太细的手指可以把 `--around` 降到 12。
 

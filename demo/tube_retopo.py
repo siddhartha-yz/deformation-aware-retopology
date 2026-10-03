@@ -311,11 +311,15 @@ def main() -> None:
     parser.add_argument("--rings", type=int, default=26)
     parser.add_argument("--around", type=int, default=16)
     parser.add_argument("--bend", type=float, default=90.0)
-    parser.add_argument("--out", type=Path, default=ROOT / "docs" / "figures" / "07_retopo.png")
-    parser.add_argument("--mesh-dir", type=Path, default=ROOT / "docs" / "meshes")
+    parser.add_argument("--out", type=Path, default=None)
+    parser.add_argument("--mesh-dir", type=Path, default=None)
     args = parser.parse_args()
 
+    figure_dir = ROOT / "docs" / "figures"
+    demo_mesh_dir = ROOT / "docs" / "meshes"
     if args.gallery:
+        args.mesh_dir = args.mesh_dir or demo_mesh_dir
+        args.out = args.out or figure_dir / "07_retopo.png"
         specs = (
             ("胳膊", sculpt_arm, "arm"),
             ("手指", sculpt_finger, "finger"),
@@ -367,18 +371,28 @@ def main() -> None:
         return
 
     if args.demo or args.mesh is None:
+        mesh_dir = args.mesh_dir or demo_mesh_dir
+        preview = args.out or figure_dir / "07_retopo.png"
         vertices, faces = sculpt_arm()
-        write_obj(args.mesh_dir / "sculpt_arm.obj", vertices, faces)
+        write_obj(mesh_dir / "sculpt_arm.obj", vertices, faces)
+        ring_path = mesh_dir / "retopo_rings.obj"
+        bent_path = mesh_dir / "retopo_bent.obj"
     else:
+        mesh_dir = args.mesh_dir or args.mesh.parent
+        preview = args.out or mesh_dir / f"{args.mesh.stem}_preview.png"
         vertices, faces = read_obj(args.mesh)
+        ring_path = mesh_dir / f"{args.mesh.stem}_rings.obj"
+        bent_path = mesh_dir / f"{args.mesh.stem}_bent.obj"
 
     quads_v, quads_f, _axis = retopo_tube(vertices, faces, n_rings=args.rings, n_around=args.around)
     bent = bend_tube(quads_v, args.bend)
-    save_preview((vertices, faces), quads_v, quads_f, bent, args.out)
-    write_obj(args.mesh_dir / "retopo_rings.obj", quads_v, quads_f)
-    write_obj(args.mesh_dir / "retopo_bent.obj", bent, quads_f)
+    save_preview((vertices, faces), quads_v, quads_f, bent, preview)
+    write_obj(ring_path, quads_v, quads_f)
+    write_obj(bent_path, bent, quads_f)
     print(f"三角面 {len(faces)} 个，套成四边面 {len(quads_f)} 个")
-    print(args.out)
+    print(ring_path)
+    print(bent_path)
+    print(preview)
 
 
 if __name__ == "__main__":
