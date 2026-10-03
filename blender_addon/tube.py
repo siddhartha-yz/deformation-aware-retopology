@@ -238,19 +238,9 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
     axis = np.asarray(axis, dtype=np.float64)
     axis = axis / np.linalg.norm(axis)
     projection = vertices @ axis
-    low = vertices[int(np.argmin(projection))]
-    high = vertices[int(np.argmax(projection))]
-
-    def reach_of(point: np.ndarray) -> float:
-        distances = np.linalg.norm(vertices - point, axis=1)
-        return float(np.partition(distances, min(40, len(distances) - 1))[min(40, len(distances) - 1)])
-
-    if reach_of(low) <= reach_of(high):
-        tip = low
-        forward = axis
-    else:
-        tip = high
-        forward = -axis
+    # The axis points out along the limb you want. Start at that tip and walk back.
+    tip = vertices[int(np.argmax(projection))]
+    forward = -axis
     length = float(projection.max() - projection.min())
     step = length / max(n_rings * 2, 8)
     scale = float(np.linalg.norm(vertices.max(axis=0) - vertices.min(axis=0)))
@@ -262,6 +252,8 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
     for _ in range(n_rings * 3):
         loops = _all_loops(_segment_hits(vertices, faces, origin, forward), scale)
         if loops:
+            if len(loops) > 1 and len(rings) >= 4:
+                break
             loop = min(loops, key=_loop_radius)
             radius = _loop_radius(loop)
             if tip_radius is None:

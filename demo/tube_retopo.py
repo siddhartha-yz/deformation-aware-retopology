@@ -145,7 +145,7 @@ def sculpt_curved() -> tuple[np.ndarray, np.ndarray]:
     return vertices_a, np.asarray(faces, dtype=np.int32)
 
 
-def sculpt_body() -> tuple[np.ndarray, np.ndarray]:
+def sculpt_body(two_arms: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """A torso with one arm sticking out. The long direction is the torso, not the arm."""
     torso_z = np.linspace(-0.9, 0.9, 36)
     torso_r = 0.28
@@ -176,6 +176,8 @@ def sculpt_body() -> tuple[np.ndarray, np.ndarray]:
     arm = np.stack([arm_x, np.zeros_like(arm_x), np.full_like(arm_x, 0.25)], axis=1)
     torso_base = add_tube(torso, torso_r)
     arm_base = add_tube(arm, arm_r)
+    left = np.stack([-arm_x, np.zeros_like(arm_x), np.full_like(arm_x, 0.25)], axis=1)
+    left_base = add_tube(left, arm_r) if two_arms else None
     vertices_a = np.asarray(vertices, dtype=np.float64)
     faces = []
 
@@ -192,6 +194,8 @@ def sculpt_body() -> tuple[np.ndarray, np.ndarray]:
 
     add_faces(torso_base, len(torso))
     add_faces(arm_base, len(arm))
+    if left_base is not None:
+        add_faces(left_base, len(left))
     return vertices_a, np.asarray(faces, dtype=np.int32)
 
 
@@ -506,6 +510,27 @@ def main() -> None:
         aim_fig.savefig(gallery.with_name("13_arm_only.png"), dpi=150, bbox_inches="tight", facecolor="white")
         plt.close(aim_fig)
         print(f"body auto={len(body_default_f)} arm={len(body_arm_f)}")
+        both_v, both_f = sculpt_body(two_arms=True)
+        right_v, right_f, _ = retopo_tube(both_v, both_f, n_rings=18, n_around=12, axis=np.array([1.0, 0.0, 0.0]))
+        left_v, left_f, _ = retopo_tube(both_v, both_f, n_rings=18, n_around=12, axis=np.array([-1.0, 0.0, 0.0]))
+        write_obj(args.mesh_dir / "both_sculpt.obj", both_v, both_f)
+        write_obj(args.mesh_dir / "both_right.obj", right_v, right_f)
+        write_obj(args.mesh_dir / "both_left.obj", left_v, left_f)
+        both_limits = bounds_of([both_v, right_v, left_v], pad=0.08)
+        both_fig = plt.figure(figsize=(10.4, 4.2), facecolor="white")
+        for index, (verts, faces, edge, title) in enumerate(
+            (
+                (both_v, both_f, SCULPT_EDGE, "左右各一条"),
+                (right_v, right_f, QUAD_EDGE, "方向 1,0,0 右手"),
+                (left_v, left_f, QUAD_EDGE, "方向 -1,0,0 左手"),
+            ),
+            start=1,
+        ):
+            ax = both_fig.add_subplot(1, 3, index, projection="3d")
+            _draw(ax, verts, faces, edge, title, both_limits)
+        both_fig.suptitle("两条胳膊要切两次", fontsize=16)
+        both_fig.savefig(gallery.with_name("17_two_arms.png"), dpi=140, bbox_inches="tight", facecolor="white")
+        plt.close(both_fig)
         # Keep the arm preview the README already points at.
         arm = items[0]
         save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))

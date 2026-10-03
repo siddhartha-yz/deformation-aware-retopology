@@ -95,6 +95,15 @@ python demo/tube_retopo.py 你的模型.obj --axis 1,0,0
 
 ![只剩胳膊](docs/figures/13_arm_only.png)
 
+左右都有时，正反各跑一次：
+
+```bash
+python demo/tube_retopo.py 你的模型.obj --axis 1,0,0
+python demo/tube_retopo.py 你的模型.obj --axis -1,0,0
+```
+
+![两条胳膊](docs/figures/17_two_arms.png)
+
 ## 在 Blender 里
 
 1. 安装 `release/retopo_flow_blender_addon_v1.0.0.zip`（和命令行是同一套切法）
