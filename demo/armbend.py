@@ -203,17 +203,28 @@ def figure_rest(arm: dict, out: Path) -> None:
 
 def figure_wires(arm: dict, out: Path) -> None:
     """Side view of the elbow so the loop direction is obvious."""
-    fig = plt.figure(figsize=(8.6, 4.4), facecolor="white")
-    elbow = []
-    for mesh in arm.values():
-        mask = np.abs(mesh["verts"][:, 2]) < 0.42
-        elbow.append(mesh["verts"][mask])
-    limits = bounds_of(elbow, pad=0.04)
-    specs = (("ring", RING_EDGE, "环线：一圈一圈，横着过肘"), ("diagonal", DIAG_EDGE, "斜线：边是斜着跨过肘的"))
-    for index, (label, edge, title) in enumerate(specs, start=1):
-        ax = fig.add_subplot(1, 2, index, projection="3d")
+    fig, axes = plt.subplots(1, 2, figsize=(8.8, 6.6), facecolor="white")
+    specs = (
+        ("ring", "#6B4A36", "环线：一圈一圈，横着过肘"),
+        ("diagonal", "#1D4ED8", "斜线：边是斜着跨过肘的"),
+    )
+    for ax, (label, color, title) in zip(axes, specs):
         mesh = arm[label]
-        draw_arm(ax, mesh["verts"], mesh["quads"], edge, title, limits=limits, elev=6, azim=-90)
+        verts = mesh["verts"]
+        quads = np.asarray(mesh["quads"])
+        band = np.abs(verts[:, 2]) <= 0.42
+        keep = quads[band[quads].all(axis=1)]
+        xy = np.column_stack([verts[:, 0], verts[:, 2]])
+        for face in keep:
+            pts = verts[face]
+            normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            if float(normal[1]) <= 0.0:
+                continue
+            loop = xy[list(face) + [int(face[0])]]
+            ax.fill(loop[:, 0], loop[:, 1], color="#F3D7C3", edgecolor=color, linewidth=1.05, zorder=2)
+        ax.set_title(title, fontsize=13, pad=8)
+        ax.set_aspect("equal")
+        ax.axis("off")
     fig.suptitle("只看肘部：差别在边往哪走", fontsize=16)
     save(fig, out)
 
