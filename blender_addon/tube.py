@@ -280,6 +280,7 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
     if len(rings) < 4:
         raise RuntimeError("这个方向上切不出一条细管子")
     rings = _drop_shrunk_ends(_align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(rings), scale)))
+    rings = _space_by_radius(vertices, faces, rings, scale)
     quads = []
     count = n_around
     for j in range(len(rings) - 1):
@@ -363,6 +364,65 @@ def _drop_tilted_ends(rings: list[np.ndarray], limit_deg: float = 18.0) -> list[
     while len(rings) >= 5 and tilted(rings[-1], rings[-2]):
         rings = rings[:-1]
     return rings
+
+
+def _space_by_radius(vertices: np.ndarray, faces: np.ndarray, rings: list[np.ndarray], scale: float) -> list[np.ndarray]:
+    """Put rings closer together where the tube is thin, so the quads stay nearer to square."""
+    if len(rings) < 6:
+        return rings
+    count = len(rings[0])
+    centers = np.array([ring.mean(axis=0) for ring in rings])
+    radii = np.array([
+        float(np.mean(np.linalg.norm(ring - center, axis=1)))
+        for ring, center in zip(rings, centers)
+    ])
+    steps = np.linalg.norm(np.diff(centers, axis=0), axis=1)
+    if float(steps.sum()) < 1e-8:
+        return rings
+    edge_radius = np.maximum(0.5 * (radii[:-1] + radii[1:]), 1e-6)
+    ratio = steps / (2.0 * np.pi * edge_radius / count)
+    if float(ratio.max()) < 2.2:
+        return rings
+    arc = np.concatenate([[0.0], np.cumsum(steps)])
+    weight = np.concatenate([[0.0], np.cumsum(steps / edge_radius)])
+    targets = np.linspace(0.0, weight[-1], len(rings))
+    sample_at = np.interp(targets, weight, arc)
+    new_centers = np.vstack([np.interp(sample_at, arc, centers[:, axis]) for axis in range(3)]).T
+    rebuilt = []
+    normal = None
+    bitangent = None
+    for index, origin in enumerate(new_centers):
+        nxt = new_centers[min(index + 1, len(new_centers) - 1)]
+        prev = new_centers[max(index - 1, 0)]
+        tangent = nxt - prev
+        length = float(np.linalg.norm(tangent))
+        if length < 1e-8:
+            continue
+        tangent = tangent / length
+        if normal is None:
+            normal, bitangent = _plane_basis(tangent)
+        else:
+            normal = normal - tangent * float(normal @ tangent)
+            norm = float(np.linalg.norm(normal))
+            if norm < 1e-8:
+                normal, bitangent = _plane_basis(tangent)
+            else:
+                normal = normal / norm
+                bitangent = np.cross(tangent, normal)
+        segments = _segment_hits(vertices, faces, origin, tangent)
+        if len(_all_loops(segments, scale)) != 1:
+            return rings
+        loop = _stitch_loop(segments, scale)
+        if loop is None:
+            continue
+        ring = _resample_ring(loop, origin, tangent, normal, bitangent, count)
+        edges = np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)
+        if float(edges.min()) < 0.35 * float(np.median(edges)):
+            continue
+        rebuilt.append(ring)
+    if len(rebuilt) < max(4, len(rings) - 2):
+        return rings
+    return _align_ring_seams(rebuilt)
 
 
 def _drop_shrunk_ends(rings: list[np.ndarray]) -> list[np.ndarray]:
@@ -545,6 +605,8 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         if straight is not None:
             rings = straight
     rings = _drop_shrunk_ends(_align_ring_seams(_extend_to_tips(vertices, faces, _drop_tilted_ends(_drop_bridged_rings(rings)), scale)))
+    if not stopped_at_junction:
+        rings = _space_by_radius(vertices, faces, rings, scale)
     if len(rings) < 2:
         direction = centers[-1] - centers[0]
     else:
