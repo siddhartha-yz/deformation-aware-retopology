@@ -298,6 +298,40 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
     return np.vstack(rings), np.asarray(quads, dtype=np.int32), forward
 
 
+def _drop_bridged_rings(rings: list[np.ndarray]) -> list[np.ndarray]:
+    """Stop where the next ring jumps across a gap, instead of stretching quads over it."""
+    if len(rings) < 4:
+        return rings
+    centers = np.array([ring.mean(axis=0) for ring in rings])
+    steps = np.linalg.norm(np.diff(centers, axis=0), axis=1)
+    typical = float(np.median(steps))
+    if typical < 1e-8:
+        return rings
+    radii = [float(np.mean(np.linalg.norm(ring - ring.mean(axis=0), axis=1))) for ring in rings]
+    for index, step in enumerate(steps):
+        radius = max(radii[index], radii[index + 1], 1e-8)
+        if step > 2.5 * typical and step > 3.0 * radius:
+            kept = rings[: index + 1]
+            return kept if len(kept) >= 4 else rings
+    return rings
+
+
+def missed_directions(source: np.ndarray, result: np.ndarray) -> list[int]:
+    """Axes where the source is long and this cut barely reaches."""
+    src_span = np.asarray(source, dtype=np.float64).max(axis=0) - np.asarray(source, dtype=np.float64).min(axis=0)
+    dst_span = np.asarray(result, dtype=np.float64).max(axis=0) - np.asarray(result, dtype=np.float64).min(axis=0)
+    longest = float(np.max(src_span))
+    if longest < 1e-8:
+        return []
+    missed = []
+    for axis in range(3):
+        if src_span[axis] < 0.45 * longest:
+            continue
+        if dst_span[axis] < 0.55 * float(src_span[axis]):
+            missed.append(axis)
+    return missed
+
+
 def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_around: int = 16, axis: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return quad vertices, quad faces, and a unit axis direction."""
     vertices = np.asarray(vertices, dtype=np.float64)
@@ -336,7 +370,11 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         if float(edges.min()) < 0.35 * float(np.median(edges)):
             continue
         rings.append(ring)
-    direction = centers[-1] - centers[0]
+    rings = _drop_bridged_rings(rings)
+    if len(rings) < 2:
+        direction = centers[-1] - centers[0]
+    else:
+        direction = rings[-1].mean(axis=0) - rings[0].mean(axis=0)
     direction = direction / max(float(np.linalg.norm(direction)), 1e-8)
     if len(rings) < 4:
         raise RuntimeError(f"只切出了 {len(rings)} 圈，这条模型不像一根管子")

@@ -308,7 +308,7 @@ if RUNNING_IN_BLENDER:
             addon_dir = str(Path(__file__).resolve().parent)
             if addon_dir not in sys.path:
                 sys.path.insert(0, addon_dir)
-            from tube import retopo_tube
+            from tube import missed_directions, retopo_tube
 
             mesh = active_obj.data
             mesh.calc_loop_triangles()
@@ -392,7 +392,13 @@ if RUNNING_IN_BLENDER:
             new_obj.select_set(True)
             context.view_layer.objects.active = new_obj
             
-            self.report({'INFO'}, f"套了 {metrics['face_count']} 个四边面，用时 {dt_ms:.0f} 毫秒")
+            note = ""
+            if aim is None:
+                missed = missed_directions(src_verts, verts)
+                names = ("左右", "前后", "上下")
+                if missed:
+                    note = "。" + "、".join(names[axis] for axis in missed) + "还没切完"
+            self.report({'INFO'}, f"套了 {metrics['face_count']} 个四边面，用时 {dt_ms:.0f} 毫秒{note}")
             return {'FINISHED'}
 
 

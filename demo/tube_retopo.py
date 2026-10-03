@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "blender_addon"))
 
-from blender_addon.tube import long_axis, retopo_tube  # noqa: E402
+from blender_addon.tube import long_axis, missed_directions, retopo_tube  # noqa: E402
 from demo.armbend import bounds_of, make_arm, setup_font, shade_quads  # noqa: E402
 from experiments.oracle_section_area import bend_around_x, lbs, sigmoid_weights  # noqa: E402
 
@@ -404,6 +404,12 @@ def main() -> None:
         extent = arm_v.max(axis=0) - arm_v.min(axis=0)
         if not (extent[0] > extent[1] * 2 and extent[0] > extent[2] * 2 and len(arm_f) >= 48):
             raise SystemExit(f"指定方向没有切出胳膊: extent={extent} faces={len(arm_f)}")
+        both_v, both_f = sculpt_body(two_arms=True)
+        auto_v, _auto_f, _auto_axis = retopo_tube(both_v, both_f, n_rings=16, n_around=10)
+        if float(auto_v[:, 0].min()) < -0.05 and float(auto_v[:, 0].max()) > 0.05:
+            raise SystemExit("自动切法把两条胳膊连到一起了")
+        if 0 not in missed_directions(both_v, auto_v):
+            raise SystemExit("两条胳膊时应该提示左右还没切完")
         print(f"ok 胳膊四边面 {len(arm_f)} 个")
         return
 
@@ -592,6 +598,15 @@ def main() -> None:
     write_obj(ring_path, quads_v, quads_f)
     write_obj(bent_path, bent, quads_f)
     print(f"三角面 {len(faces)} 个，套成四边面 {len(quads_f)} 个")
+    if chosen_axis is None:
+        hints = (
+            ("左右", "1,0,0", "-1,0,0"),
+            ("前后", "0,1,0", "0,-1,0"),
+            ("上下", "0,0,1", "0,0,-1"),
+        )
+        for axis in missed_directions(vertices, quads_v):
+            name, positive, negative = hints[axis]
+            print(f"{name}还没切完。正向 --axis {positive}，反向 --axis {negative}")
     print(ring_path)
     print(bent_path)
     print(preview)
