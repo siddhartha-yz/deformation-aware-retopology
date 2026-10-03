@@ -126,24 +126,95 @@ def _resample_ring(loop: np.ndarray, origin: np.ndarray, direction: np.ndarray, 
     return np.asarray(ring, dtype=np.float64)
 
 
+def _resample_curve(points: np.ndarray, count: int) -> np.ndarray:
+    if len(points) == 1:
+        return np.repeat(points, count, axis=0)
+    lengths = np.linalg.norm(np.diff(points, axis=0), axis=1)
+    cumulative = np.concatenate([[0.0], np.cumsum(lengths)])
+    total = float(cumulative[-1])
+    if total < 1e-8:
+        return np.repeat(points[:1], count, axis=0)
+    targets = np.linspace(0.0, total, count)
+    samples = []
+    for target in targets:
+        index = int(np.searchsorted(cumulative, target, side="right") - 1)
+        index = min(max(index, 0), len(points) - 2)
+        span = cumulative[index + 1] - cumulative[index]
+        mix = 0.0 if span < 1e-8 else (target - cumulative[index]) / span
+        samples.append((1.0 - mix) * points[index] + mix * points[index + 1])
+    return np.asarray(samples, dtype=np.float64)
+
+
+def _centerline(vertices: np.ndarray, n_rings: int) -> np.ndarray:
+    """Walk from one tip to the other so a curved hose is not cut by one straight axis."""
+    center = vertices.mean(axis=0)
+    start = vertices[int(np.argmax(np.linalg.norm(vertices - center, axis=1)))]
+    end = vertices[int(np.argmax(np.linalg.norm(vertices - start, axis=1)))]
+    length = float(np.linalg.norm(end - start))
+    spread = np.linalg.eigvalsh(np.cov((vertices - center).T))
+    reach = max(float(np.sqrt(max(spread[0], 1e-8))) * 3.0, length * 0.08)
+    step = length / max(n_rings, 4)
+    position = start.copy()
+    direction = (end - start) / max(length, 1e-8)
+    samples = []
+    for _ in range(n_rings * 5):
+        local = vertices[np.linalg.norm(vertices - position, axis=1) < reach]
+        if len(local) < 8:
+            break
+        here = local.mean(axis=0)
+        _, axes = np.linalg.eigh(np.cov((local - here).T))
+        tangent = axes[:, -1]
+        tangent = tangent / np.linalg.norm(tangent)
+        if float(tangent @ direction) < 0.0:
+            tangent = -tangent
+        samples.append(here)
+        remaining = end - here
+        if float(np.linalg.norm(remaining)) < reach:
+            samples.append(end)
+            break
+        direction = tangent
+        position = here + tangent * step
+    polyline = np.asarray(samples, dtype=np.float64) if samples else np.zeros((0, 3))
+    span = float(np.linalg.norm(polyline[-1] - polyline[0])) if len(polyline) > 1 else 0.0
+    if len(polyline) < 4 or span < 0.65 * length:
+        return np.linspace(start, end, n_rings)
+    return _resample_curve(polyline, n_rings)
+
+
 def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_around: int = 16) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return quad vertices, quad faces, and a unit axis direction."""
     vertices = np.asarray(vertices, dtype=np.float64)
     faces = np.asarray(faces, dtype=np.int32)
-    center, direction = long_axis(vertices)
-    tangent, bitangent = _plane_basis(direction)
-    coords = (vertices - center) @ direction
-    low, high = np.quantile(coords, [0.03, 0.97])
-    stations = np.linspace(low, high, n_rings)
+    centers = _centerline(vertices, n_rings)
     scale = float(np.linalg.norm(vertices.max(axis=0) - vertices.min(axis=0)))
     rings = []
-    for station in stations:
-        origin = center + direction * float(station)
-        segments = _segment_hits(vertices, faces, origin, direction)
+    normal = None
+    bitangent = None
+    for index, origin in enumerate(centers):
+        nxt = centers[min(index + 1, len(centers) - 1)]
+        prev = centers[max(index - 1, 0)]
+        tangent = nxt - prev
+        tangent_length = float(np.linalg.norm(tangent))
+        if tangent_length < 1e-8:
+            continue
+        tangent = tangent / tangent_length
+        if normal is None:
+            normal, bitangent = _plane_basis(tangent)
+        else:
+            normal = normal - tangent * float(normal @ tangent)
+            norm = float(np.linalg.norm(normal))
+            if norm < 1e-8:
+                normal, bitangent = _plane_basis(tangent)
+            else:
+                normal = normal / norm
+                bitangent = np.cross(tangent, normal)
+        segments = _segment_hits(vertices, faces, origin, tangent)
         loop = _stitch_loop(segments, scale)
         if loop is None:
             continue
-        rings.append(_resample_ring(loop, origin, direction, tangent, bitangent, n_around))
+        rings.append(_resample_ring(loop, origin, tangent, normal, bitangent, n_around))
+    direction = centers[-1] - centers[0]
+    direction = direction / max(float(np.linalg.norm(direction)), 1e-8)
     if len(rings) < 4:
         raise RuntimeError(f"只切出了 {len(rings)} 圈，这条模型不像一根管子")
     quads = []

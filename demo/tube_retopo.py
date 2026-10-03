@@ -101,6 +101,38 @@ def sculpt_finger() -> tuple[np.ndarray, np.ndarray]:
     return tube_from_profile(knots_z, knots_r, 56, 20, 18.0)
 
 
+def sculpt_curved() -> tuple[np.ndarray, np.ndarray]:
+    """A hose that is already bent, so a single straight cut would slice through the arc."""
+    samples = np.linspace(-1.05, 1.05, 72)
+    radius = 0.11
+    bend = 0.55
+    centers = np.stack([bend * samples**2, np.zeros_like(samples), samples], axis=1)
+    tangents = np.gradient(centers, axis=0)
+    tangents /= np.linalg.norm(tangents, axis=1, keepdims=True)
+    helper = np.array([0.0, 1.0, 0.0])
+    vertices = []
+    around = 18
+    for center, tangent in zip(centers, tangents):
+        side = np.cross(tangent, helper)
+        side /= np.linalg.norm(side)
+        up = np.cross(side, tangent)
+        for i in range(around):
+            theta = 2.0 * np.pi * i / around
+            vertices.append(center + radius * (np.cos(theta) * side + np.sin(theta) * up))
+    vertices_a = np.asarray(vertices, dtype=np.float64)
+    faces = []
+    for j in range(len(centers) - 1):
+        for i in range(around):
+            nxt = (i + 1) % around
+            v0 = j * around + i
+            v1 = j * around + nxt
+            v2 = (j + 1) * around + nxt
+            v3 = (j + 1) * around + i
+            faces.append([v0, v1, v2])
+            faces.append([v0, v2, v3])
+    return vertices_a, np.asarray(faces, dtype=np.int32)
+
+
 def sculpt_hose() -> tuple[np.ndarray, np.ndarray]:
     knots_z = np.array([-1.3, -0.4, -0.15, 0.0, 0.15, 0.5, 1.3])
     knots_r = np.array([0.11, 0.11, 0.16, 0.18, 0.16, 0.11, 0.11])
@@ -296,6 +328,14 @@ def main() -> None:
         save_gallery(items, gallery)
         save_loop_closeup(items, gallery.with_name("09_loops.png"))
         save_bend_gif(items[0][2], items[0][3], gallery.with_name("retopo_bend.gif"))
+        curved_v, curved_f = sculpt_curved()
+        curved_q, curved_faces, _axis = retopo_tube(curved_v, curved_f, n_rings=args.rings, n_around=args.around)
+        curved_bent = bend_tube(curved_q, args.bend)
+        write_obj(args.mesh_dir / "curved_sculpt.obj", curved_v, curved_f)
+        write_obj(args.mesh_dir / "curved_rings.obj", curved_q, curved_faces)
+        write_obj(args.mesh_dir / "curved_bent.obj", curved_bent, curved_faces)
+        save_preview((curved_v, curved_f), curved_q, curved_faces, curved_bent, gallery.with_name("10_curved.png"))
+        print(f"curved quads={len(curved_faces)}")
         # Keep the arm preview the README already points at.
         arm = items[0]
         save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))

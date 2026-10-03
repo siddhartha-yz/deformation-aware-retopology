@@ -12,6 +12,10 @@
 
 ![套完再弯](docs/figures/retopo_bend.gif)
 
+本来就是弯的，也能顺着弯套环，不会被切成直的。
+
+![弯着的软管](docs/figures/10_curved.png)
+
 ## 安装
 
 ```bash
@@ -37,6 +41,7 @@ python demo/tube_retopo.py --gallery
 | `docs/figures/08_shapes.png` | 三种样子：高模、环线、弯 90° |
 | `docs/figures/09_loops.png` | 环线特写 |
 | `docs/figures/retopo_bend.gif` | 胳膊套完再弯 |
+| `docs/figures/10_curved.png` | 本来就是弯的软管 |
 | `docs/meshes/arm_sculpt.obj` `arm_rings.obj` `arm_bent.obj` | 胳膊 |
 | `docs/meshes/finger_sculpt.obj` `finger_rings.obj` `finger_bent.obj` | 手指 |
 | `docs/meshes/hose_sculpt.obj` `hose_rings.obj` `hose_bent.obj` | 软管 |
