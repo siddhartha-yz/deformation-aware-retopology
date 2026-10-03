@@ -71,9 +71,13 @@ python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 - `你的模型_rings.obj` 带法线，进 Blender 能顺着表面亮
 - `你的模型_bent.obj`
 
-内置胳膊的弯曲过程：
+三种东西套完之后的弯法：
 
-![套完再弯四格](docs/figures/14_bend_strip.png)
+![胳膊](docs/figures/14_bend_strip.png)
+
+![手指](docs/figures/15_finger_bend.png)
+
+![软管](docs/figures/16_hose_bend.png)
 
 圈数和每圈点数按模型粗细改。太细的手指可以把 `--around` 降到 12。
 
