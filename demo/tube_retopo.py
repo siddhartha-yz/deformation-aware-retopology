@@ -37,11 +37,15 @@ def read_obj(path: Path) -> tuple[np.ndarray, np.ndarray]:
     vertices = []
     faces = []
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        if line.startswith("v "):
-            vertices.append([float(item) for item in line.split()[1:4]])
-        elif line.startswith("f "):
+        parts = line.split()
+        if not parts:
+            continue
+        kind = parts[0].lower()
+        if kind == "v" and len(parts) >= 4:
+            vertices.append([float(parts[1]), float(parts[2]), float(parts[3])])
+        elif kind == "f" and len(parts) >= 4:
             corners = []
-            for item in line.split()[1:]:
+            for item in parts[1:]:
                 raw = item.split("/")[0]
                 if not raw:
                     continue
@@ -484,8 +488,9 @@ def main() -> None:
             raise SystemExit("身子加一条胳膊时应该提示左右还没切完")
         messy = Path("/tmp/retopo_negative_face.obj")
         messy.write_text(
-            "vt 0 0\nvn 0 0 1\nv 0 0 -1\nv 0.2 0 -1\nv 0.2 0.2 -1\nv 0 0.2 -1\n"
-            "f -4/-1/-1 -3/-1/-1 -2/-1/-1 -1/-1/-1\n",
+            "vt 0 0\nvn 0 0 1\n"
+            "v\t0\t0\t-1\nv\t0.2\t0\t-1\nv\t0.2\t0.2\t-1\nv\t0\t0.2\t-1\n"
+            "f\t-4/-1/-1\t-3/-1/-1\t-2/-1/-1\t-1/-1/-1\n",
             encoding="utf-8",
         )
         read_v, read_f = read_obj(messy)
