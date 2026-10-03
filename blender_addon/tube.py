@@ -279,7 +279,7 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
         origin = origin + forward * step
     if len(rings) < 4:
         raise RuntimeError("这个方向上切不出一条细管子")
-    rings = _drop_tilted_ends(rings)
+    rings = _extend_to_tips(vertices, faces, _drop_tilted_ends(rings), scale)
     quads = []
     count = n_around
     for j in range(len(rings) - 1):
@@ -355,6 +355,68 @@ def _drop_tilted_ends(rings: list[np.ndarray], limit_deg: float = 18.0) -> list[
         rings = rings[1:]
     while len(rings) >= 5 and tilted(rings[-1], rings[-2]):
         rings = rings[:-1]
+    return rings
+
+
+def _ring_is_tilted(previous: np.ndarray, ring: np.ndarray, limit_deg: float = 18.0) -> bool:
+    first, second = _ring_normal(previous), _ring_normal(ring)
+    if float(first @ second) < 0.0:
+        first = -first
+    angle = float(np.degrees(np.arccos(np.clip(first @ second, -1.0, 1.0))))
+    return angle > limit_deg
+
+
+def _extend_to_tips(vertices: np.ndarray, faces: np.ndarray, rings: list[np.ndarray], scale: float) -> list[np.ndarray]:
+    """Add parallel rings toward each tip, and stop at a branch or a slanted cap."""
+    if len(rings) < 4:
+        return rings
+    rings = list(rings)
+    centers = np.array([ring.mean(axis=0) for ring in rings])
+    direction = centers[-1] - centers[0]
+    span = float(np.linalg.norm(direction))
+    if span < 1e-8:
+        return rings
+    direction = direction / span
+    step = float(np.median(np.linalg.norm(np.diff(centers, axis=0), axis=1)))
+    if step < 1e-8:
+        return rings
+    projection = vertices @ direction
+    normal, bitangent = _plane_basis(direction)
+    count = len(rings[0])
+
+    def radius_of(ring: np.ndarray) -> float:
+        return float(np.mean(np.linalg.norm(ring - ring.mean(axis=0), axis=1)))
+
+    def grow(forward: bool) -> None:
+        for _ in range(8):
+            previous = rings[-1] if forward else rings[0]
+            origin = previous.mean(axis=0) + direction * step * (1.0 if forward else -1.0)
+            here = float(origin @ direction)
+            if forward and here > float(projection.max()) - 0.2 * step:
+                return
+            if not forward and here < float(projection.min()) + 0.2 * step:
+                return
+            segments = _segment_hits(vertices, faces, origin, direction)
+            if len(_all_loops(segments, scale)) != 1:
+                return
+            loop = _stitch_loop(segments, scale)
+            if loop is None:
+                return
+            radius = _loop_radius(loop)
+            previous_radius = radius_of(previous)
+            if radius > previous_radius * 1.8 or radius < previous_radius * 0.45:
+                return
+            ring = _resample_ring(loop, origin, direction, normal, bitangent, count)
+            edges = np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)
+            if float(edges.min()) < 0.35 * float(np.median(edges)) or _ring_is_tilted(previous, ring):
+                return
+            if forward:
+                rings.append(ring)
+            else:
+                rings.insert(0, ring)
+
+    grow(True)
+    grow(False)
     return rings
 
 
@@ -440,7 +502,7 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         straight = _straight_rings(vertices, faces, kept_origins, n_rings, n_around, scale)
         if straight is not None:
             rings = straight
-    rings = _drop_tilted_ends(_drop_bridged_rings(rings))
+    rings = _extend_to_tips(vertices, faces, _drop_tilted_ends(_drop_bridged_rings(rings)), scale)
     if len(rings) < 2:
         direction = centers[-1] - centers[0]
     else:
