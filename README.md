@@ -74,7 +74,7 @@ python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 
 ## 在 Blender 里
 
-1. 安装 `release/retopo_flow_blender_addon_v1.0.0.zip`
+1. 安装 `release/retopo_flow_blender_addon_v1.0.0.zip`（和命令行是同一套切法）
 2. 选中模型
 3. 按 `N`，打开「环线重拓扑」
 4. 点「套上环线」
