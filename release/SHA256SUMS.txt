@@ -1,1 +1,1 @@
-ea9c1fb70ea423bac4ab1458a5d23dc92aa224a9600c1a935caeba7b170d266d  retopo_flow_blender_addon_v1.0.0.zip
+745fb144ba94f16b8bcddce7f27b1a64e8190338a5a017a21abfa2f71565eb52  retopo_flow_blender_addon_v1.0.0.zip

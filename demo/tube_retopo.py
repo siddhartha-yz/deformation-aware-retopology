@@ -562,11 +562,18 @@ def main() -> None:
 
         body_xy = _flat(body_v)
         body_order = np.argsort(body_v[body_f].mean(axis=1)[:, 1])
+        front_body = []
+        for face in body_f[body_order]:
+            pts = body_v[face]
+            normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            if float(normal[1]) > 0.0:
+                continue
+            front_body.append(face)
         for ax, limb_v, limb_f, edge, title in (
             (body_axes[0], body_default, body_default_f, "#6B4A36", "不指定，停在胳膊下面"),
             (body_axes[1], body_arm, body_arm_f, "#C2410C", "指定向右，切胳膊"),
         ):
-            for face in body_f[body_order]:
+            for face in front_body:
                 poly = body_xy[face]
                 ax.fill(poly[:, 0], poly[:, 1], color="#F3D7C3", edgecolor="#E7C4A8", linewidth=0.12, zorder=1)
             flat = _flat(limb_v)

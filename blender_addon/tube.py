@@ -384,8 +384,17 @@ def _align_ring_seams(rings: list[np.ndarray]) -> list[np.ndarray]:
         return rings
     aligned = [rings[0]]
     for ring in rings[1:]:
-        shift = int(np.argmin(np.linalg.norm(ring - aligned[-1][0], axis=1)))
-        aligned.append(np.roll(ring, -shift, axis=0))
+        previous = aligned[-1]
+        best = ring
+        best_cost = float("inf")
+        for candidate in (ring, ring[::-1]):
+            for offset in range(len(candidate)):
+                rolled = np.roll(candidate, -offset, axis=0)
+                cost = float(np.linalg.norm(rolled - previous))
+                if cost < best_cost:
+                    best_cost = cost
+                    best = rolled
+        aligned.append(best)
     return aligned
 
 
