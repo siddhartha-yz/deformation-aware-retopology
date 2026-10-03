@@ -55,13 +55,25 @@ def read_obj(path: Path) -> tuple[np.ndarray, np.ndarray]:
 
 def write_obj(path: Path, vertices: np.ndarray, faces: np.ndarray) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    normals = np.zeros_like(vertices)
+    for face in faces:
+        pts = vertices[face]
+        face_normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+        length = float(np.linalg.norm(face_normal))
+        if length > 1e-12:
+            face_normal = face_normal / length
+            for index in face:
+                normals[int(index)] += face_normal
+    lengths = np.linalg.norm(normals, axis=1, keepdims=True)
+    normals = normals / np.maximum(lengths, 1e-12)
     with path.open("w", encoding="utf-8") as handle:
         handle.write("# tube retopo\n")
         for vertex in vertices:
             handle.write(f"v {vertex[0]:.6f} {vertex[1]:.6f} {vertex[2]:.6f}\n")
-        sides = faces.shape[1]
+        for normal in normals:
+            handle.write(f"vn {normal[0]:.5f} {normal[1]:.5f} {normal[2]:.5f}\n")
         for face in faces:
-            ids = " ".join(str(int(index) + 1) for index in face[:sides])
+            ids = " ".join(f"{int(index) + 1}//{int(index) + 1}" for index in face)
             handle.write(f"f {ids}\n")
 
 

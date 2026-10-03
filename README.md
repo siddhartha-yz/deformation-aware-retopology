@@ -68,7 +68,7 @@ python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 
 - `你的模型_preview.png` 高模、环线、弯一下
 - `你的模型_bend.png` 0°、45°、90°、120°
-- `你的模型_rings.obj`
+- `你的模型_rings.obj` 带法线，进 Blender 能顺着表面亮
 - `你的模型_bent.obj`
 
 内置胳膊的弯曲过程：
