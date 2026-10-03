@@ -330,13 +330,26 @@ def figure_curve(arm: dict, out: Path) -> None:
 
 
 def render_frame(arm: dict, angle: float, limits) -> Image.Image:
-    fig = plt.figure(figsize=(8.6, 4.6), facecolor="white")
-    for index, (label, edge, name) in enumerate((("ring", RING_EDGE, "环线"), ("diagonal", DIAG_EDGE, "斜线")), start=1):
-        ax = fig.add_subplot(1, 2, index, projection="3d")
+    fig, axes = plt.subplots(1, 2, figsize=(8.8, 5.4), facecolor="white")
+    specs = (("ring", "#6B4A36", "环线"), ("diagonal", "#1D4ED8", "斜线"))
+    keep = float(np.cos(np.radians(angle) / 2.0))
+    for ax, (label, color, name) in zip(axes, specs):
         mesh = arm[label]
-        deformed = lbs(mesh["verts"], mesh["weights"], bend_around_x(angle))
-        keep = float(np.cos(np.radians(angle) / 2.0))
-        draw_arm(ax, deformed, mesh["quads"], edge, f"{name}  {angle:.0f}°  还剩 {keep:.0%}", limits=limits)
+        verts = lbs(mesh["verts"], mesh["weights"], bend_around_x(angle))
+        quads = np.asarray(mesh["quads"])
+        flat = np.column_stack([verts[:, 1], verts[:, 2]])
+        for face in quads:
+            pts = verts[face]
+            normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            if float(normal[0]) <= 0.0:
+                continue
+            loop = flat[list(face) + [int(face[0])]]
+            ax.fill(loop[:, 0], loop[:, 1], color="#F3D7C3", edgecolor=color, linewidth=0.7, zorder=2)
+        ax.set_title(f"{name}  {angle:.0f}°  还剩 {keep:.0%}", fontsize=12)
+        ax.set_xlim(limits[0], limits[1])
+        ax.set_ylim(limits[2], limits[3])
+        ax.set_aspect("equal")
+        ax.axis("off")
     fig.suptitle("肘部怎么扁，和布线斜不斜没关系", fontsize=14)
     buffer = BytesIO()
     fig.savefig(buffer, format="png", dpi=100, bbox_inches="tight", facecolor="white")
@@ -350,8 +363,16 @@ def figure_gif(arm: dict, out: Path) -> None:
     clouds = []
     for angle in angles:
         for mesh in arm.values():
-            clouds.append(lbs(mesh["verts"], mesh["weights"], bend_around_x(float(angle))))
-    limits = bounds_of(clouds, pad=0.08)
+            posed = lbs(mesh["verts"], mesh["weights"], bend_around_x(float(angle)))
+            clouds.append(posed[:, 1:3])
+    stacked = np.vstack(clouds)
+    pad = 0.08 * max(float(np.ptp(stacked[:, 0])), float(np.ptp(stacked[:, 1])), 1e-6)
+    limits = (
+        float(stacked[:, 0].min()) - pad,
+        float(stacked[:, 0].max()) + pad,
+        float(stacked[:, 1].min()) - pad,
+        float(stacked[:, 1].max()) + pad,
+    )
     frames = [render_frame(arm, float(angle), limits) for angle in angles]
     out.parent.mkdir(parents=True, exist_ok=True)
     frames[0].save(out, save_all=True, append_images=frames[1:], duration=70, loop=0, optimize=True)
