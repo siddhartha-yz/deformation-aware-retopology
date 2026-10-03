@@ -491,20 +491,33 @@ def main() -> None:
         write_obj(args.mesh_dir / "body_sculpt.obj", body_v, body_f)
         write_obj(args.mesh_dir / "body_auto.obj", body_default, body_default_f)
         write_obj(args.mesh_dir / "body_arm.obj", body_arm, body_arm_f)
-        body_limits = bounds_of([body_v, body_default, body_arm], pad=0.08)
-        body_fig = plt.figure(figsize=(10.4, 4.2), facecolor="white")
-        for index, (verts, faces, edge, title) in enumerate(
-            (
-                (body_v, body_f, SCULPT_EDGE, "身子加一条胳膊"),
-                (body_default, body_default_f, QUAD_EDGE, "不指定，顺着身子切"),
-                (body_arm, body_arm_f, QUAD_EDGE, "指定向右，切胳膊"),
-            ),
-            start=1,
+        body_fig, body_axes = plt.subplots(1, 2, figsize=(8.6, 7.2), facecolor="white")
+
+        def _flat(points):
+            return np.column_stack([points[:, 0] + 0.35 * points[:, 1], points[:, 2] + 0.18 * points[:, 1]])
+
+        body_xy = _flat(body_v)
+        body_order = np.argsort(body_v[body_f].mean(axis=1)[:, 1])
+        for ax, limb_v, limb_f, edge, title in (
+            (body_axes[0], body_default, body_default_f, "#6B4A36", "不指定，停在胳膊下面"),
+            (body_axes[1], body_arm, body_arm_f, "#C2410C", "指定向右，切胳膊"),
         ):
-            ax = body_fig.add_subplot(1, 3, index, projection="3d")
-            _draw(ax, verts, faces, edge, title, body_limits)
+            for face in body_f[body_order]:
+                poly = body_xy[face]
+                ax.fill(poly[:, 0], poly[:, 1], color="#F3D7C3", edgecolor="#E7C4A8", linewidth=0.12, zorder=1)
+            flat = _flat(limb_v)
+            for face in limb_f:
+                pts = limb_v[list(face)]
+                normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+                if normal[1] > 0.0:
+                    continue
+                loop = flat[list(face) + [face[0]]]
+                ax.plot(loop[:, 0], loop[:, 1], color=edge, linewidth=1.15, solid_capstyle="round", zorder=3)
+            ax.set_title(title, fontsize=14, pad=8)
+            ax.set_aspect("equal")
+            ax.axis("off")
         body_fig.suptitle("想切哪根，就告诉它方向", fontsize=16)
-        body_fig.savefig(gallery.with_name("12_aim.png"), dpi=140, bbox_inches="tight", facecolor="white")
+        body_fig.savefig(gallery.with_name("12_aim.png"), dpi=150, bbox_inches="tight", facecolor="white")
         plt.close(body_fig)
         arm_only = body_v[body_v[:, 0] > 0.35]
         aim_limits = bounds_of([arm_only, body_arm], pad=0.04)

@@ -298,6 +298,43 @@ def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_r
     return np.vstack(rings), np.asarray(quads, dtype=np.int32), forward
 
 
+def _straight_rings(vertices: np.ndarray, faces: np.ndarray, origins: list[np.ndarray], n_rings: int, n_around: int, scale: float) -> list[np.ndarray] | None:
+    """Replace a bending walk with parallel slices along its straight run, stopping at a junction."""
+    if len(origins) < 4:
+        return None
+    points = np.asarray(origins, dtype=np.float64)
+    direction = points[-1] - points[0]
+    length = float(np.linalg.norm(direction))
+    if length < 1e-8:
+        return None
+    direction = direction / length
+    step = length / max(len(points) - 1, 1)
+    normal, bitangent = _plane_basis(direction)
+    rebuilt = []
+    tip_radius = None
+    pos = points[0].copy()
+    for _ in range(n_rings):
+        segments = _segment_hits(vertices, faces, pos, direction)
+        loops = _all_loops(segments, scale)
+        if len(loops) > 1 and len(rebuilt) >= 4:
+            break
+        loop = _stitch_loop(segments, scale)
+        if loop is not None:
+            radius = _loop_radius(loop)
+            if tip_radius is None:
+                tip_radius = radius
+            elif radius > tip_radius * 2.4 and len(rebuilt) >= 4:
+                break
+            ring = _resample_ring(loop, pos, direction, normal, bitangent, n_around)
+            edges = np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)
+            if float(edges.min()) >= 0.35 * float(np.median(edges)):
+                rebuilt.append(ring)
+        if len(rebuilt) >= n_rings:
+            break
+        pos = pos + direction * step
+    return rebuilt if len(rebuilt) >= 4 else None
+
+
 def _drop_bridged_rings(rings: list[np.ndarray]) -> list[np.ndarray]:
     """Stop where the next ring jumps across a gap, instead of stretching quads over it."""
     if len(rings) < 4:
@@ -341,6 +378,8 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
     centers = _centerline(vertices, n_rings)
     scale = float(np.linalg.norm(vertices.max(axis=0) - vertices.min(axis=0)))
     rings = []
+    kept_origins = []
+    stopped_at_junction = False
     normal = None
     bitangent = None
     for index, origin in enumerate(centers):
@@ -363,7 +402,9 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
                 bitangent = np.cross(tangent, normal)
         segments = _segment_hits(vertices, faces, origin, tangent)
         if len(_all_loops(segments, scale)) > 1 and len(rings) >= 4:
+            stopped_at_junction = True
             break
+        kept_origins.append(origin)
         loop = _stitch_loop(segments, scale)
         if loop is None:
             continue
@@ -372,6 +413,10 @@ def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_ar
         if float(edges.min()) < 0.35 * float(np.median(edges)):
             continue
         rings.append(ring)
+    if stopped_at_junction:
+        straight = _straight_rings(vertices, faces, kept_origins, n_rings, n_around, scale)
+        if straight is not None:
+            rings = straight
     rings = _drop_bridged_rings(rings)
     if len(rings) < 2:
         direction = centers[-1] - centers[0]
