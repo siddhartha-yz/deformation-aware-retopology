@@ -1,6 +1,6 @@
 # Status
 
-The pictures on the front page are the part meant for people: `python demo/armbend.py`. This file is the research record.
+The front page is the ring tool: `python demo/tube_retopo.py --gallery`. This file is the research record.
 
 **Verdict: NO-GO** on the empirical claim that a trained kinematic flow-matching model beats QuadriFlow and MeshGPT at deformation-aware quad retopology.
 
@@ -14,7 +14,7 @@ The first-pass README, `paper/main.tex`, and `runs/latest/sota_character_benchma
 
 Three pieces exist, and they are not connected.
 
-1. **Analytic cylinder lattice.** `RetopoInferenceEngine.generate_quad_topology` in `blender_addon/__init__.py` builds a regular quad cylinder from the point-cloud bounding box and integrates the closed-form field `s_1 - s_0` for a few ODE steps. Quad ratio and valence-4 ratio are 100% because every face is a quad on that lattice. This is the path used by `run_pipeline.py`, the Blender add-on, and both SOTA scripts. It does not load `FlowRetopoDiT`.
+1. **Analytic cylinder lattice.** `RetopoInferenceEngine.generate_quad_topology` in `runs/latest/blender_retopo_addon.py` builds a regular quad cylinder from the point-cloud bounding box and integrates the closed-form field `s_1 - s_0` for a few ODE steps. Quad ratio and valence-4 ratio are 100% because every face is a quad on that lattice. `run_pipeline.py` and the old SOTA scripts still call that lattice. They do not load `FlowRetopoDiT`. The Blender button and `demo/tube_retopo.py` do not use it. They slice the mesh into quad rings with `blender_addon/tube.py`.
 
 2. **Autoregressive surrogate.** The rows labeled MeshGPT in the first-pass tables are a Gaussian drift on a cylinder, plus a fixed latency offset. No MeshGPT or PolyGen weights are loaded.
 
