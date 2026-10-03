@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-"""
-RetopoFlow-AI: Kinematic Deformation-Aware Quad Retopology Add-on
-================================================================
-Phase 3: Scaling, Kinematic Conditioning & Production Retopology
-Project Code: MESH-FLOW-RETOPOLOGY
+"""Blender sidebar tool: put quad rings on a long thin mesh.
 
-Target DCC: Blender 4.x / 5.x Python API (bpy)
-The operator builds a regular quad cylinder from the target bounding box.
-It does not load FlowRetopoDiT. Skinning weights are a distance softmax over joints.
-5. Self-Contained Standalone Test Harness (runs outside Blender via MockBpy)
+Not a neural model. Outside Blender, running this file checks that the
+same cutter used by the button still produces a quad tube.
 """
 
 bl_info = {
@@ -403,7 +397,7 @@ if RUNNING_IN_BLENDER:
 
 
     class FLOWRETOPO_PT_main_panel(Panel):
-        """RetopoFlow-AI 3D Viewport Sidebar Panel"""
+        """Sidebar panel for putting quad rings on a long mesh."""
         bl_label = "环线重拓扑"
         bl_idname = "FLOWRETOPO_PT_main_panel"
         bl_space_type = 'VIEW_3D'
@@ -457,86 +451,39 @@ if RUNNING_IN_BLENDER:
         del bpy.types.Scene.flow_retopo_props
 
 
-# ==============================================================================
-# 3. Standalone Verification & Mock Execution Harness
-# ==============================================================================
-
-class MockMeshVertex:
-    def __init__(self, x, y, z):
-        self.co = type('Co', (), {'x': x, 'y': y, 'z': z})()
-        self.normal = type('Norm', (), {'x': 0.0, 'y': 0.0, 'z': 1.0})()
-
-class MockMeshData:
-    def __init__(self, name="Target_HighPoly"):
-        self.name = name
-        self.vertices = [MockMeshVertex(np.cos(th)*0.4, np.sin(th)*0.4, z) 
-                         for z in np.linspace(-1.0, 1.0, 30) 
-                         for th in np.linspace(0, 2*np.pi, 20)]
-
-class MockObject:
-    def __init__(self, name="Target_Armature_Cylinder", obj_type="MESH"):
-        self.name = name
-        self.type = obj_type
-        self.data = MockMeshData(name)
-        self.matrix_world = type('Mat', (), {
-            'to_3x3': lambda self: type('Rot', (), {'__matmul__': lambda s, n: n})(),
-            '__matmul__': lambda self, v: v
-        })()
-
-
 def run_standalone_addon_test():
-    print("=" * 85)
-    print("RUNNING WP 3.3: BLENDER 4.x/5.x PRODUCTION RETOPOLOGY ADD-ON SUITE")
-    print("=" * 85)
-    
-    print("\n[STEP 1] Validating bl_info Add-on Metadata...")
-    assert "name" in bl_info and "环线" in bl_info["name"]
+    """Check the cutter the sidebar button calls, without opening Blender."""
+    from pathlib import Path
+
+    addon_dir = str(Path(__file__).resolve().parent)
+    if addon_dir not in sys.path:
+        sys.path.insert(0, addon_dir)
+    from tube import retopo_tube
+
+    assert "环线" in bl_info["name"]
     assert bl_info["blender"] >= (4, 0, 0)
-    assert bl_info["category"] == "Mesh"
-    print(f"  Add-on Name:    {bl_info['name']}")
-    print(f"  Blender Target: {bl_info['blender']}")
-    print(f"  Category:       {bl_info['category']}")
-    print("  -> Metadata conforms strictly to Blender Extensions & Add-on Standards.")
-    
-    print("\n[STEP 2] Simulating Scene Target Ingestion & Kinematic Bone Extraction...")
-    mock_mesh = MockObject("Arm_HighPoly", "MESH")
-    mock_armature = MockObject("Arm_Rig", "ARMATURE")
-    
-    high_pts, high_nrms = RetopoInferenceEngine.sample_surface_points(mock_mesh, num_points=2048)
-    joints, joint_names, parents = RetopoInferenceEngine.extract_armature_joints(mock_armature)
-    
-    print(f"  Sampled High-Poly Surface Points: {high_pts.shape}")
-    print(f"  Extracted Kinematic Skeleton:     {len(joints)} joints: {joint_names}")
-    
-    print("\n[STEP 3] Building analytic cylinder lattice...")
-    t0 = time.perf_counter()
-    verts, quads, weights = RetopoInferenceEngine.generate_quad_topology(
-        target_pts=high_pts,
-        joint_positions=joints,
-        num_rings=20,
-        radial_seg=16,
-        solver_type="Midpoint",
-        ode_steps=10,
-        lambda_strain=0.25
+    around = 12
+    heights = np.linspace(-1.0, 1.0, 20)
+    angles = np.linspace(0.0, 2.0 * np.pi, around, endpoint=False)
+    vertices = np.array(
+        [[0.2 * np.cos(angle), 0.2 * np.sin(angle), height] for height in heights for angle in angles],
+        dtype=np.float64,
     )
-    dt_ms = (time.perf_counter() - t0) * 1000.0
-    
-    metrics = RetopoInferenceEngine.evaluate_topology_metrics(verts, quads)
-    
-    print(f"  Generated Vertices:       {metrics['vertex_count']}")
-    print(f"  Generated Quad Faces:     {metrics['face_count']}")
-    print(f"  Skinning Weight Matrix:   {weights.shape}")
-    print(f"  Inference Latency:        {dt_ms:.2f} ms")
-    print(f"  Quad Ratio (Q%):          {metrics['quad_ratio']:.2f}%")
-    print(f"  Valence-4 Ratio (V4%):    {metrics['valence_4_pct']:.2f}%")
-    
-    assert metrics["quad_ratio"] == 100.0
-    assert metrics["valence_4_pct"] >= 90.0
-    assert np.allclose(np.sum(weights, axis=1), 1.0, atol=1e-5)
-    
-    print("\n" + "=" * 85)
-    print("WP 3.3 BLENDER RETOPOLOGY ADD-ON VERIFICATION PASSED SUCCESSFULLY!")
-    print("=" * 85)
+    faces = []
+    for j in range(len(heights) - 1):
+        for i in range(around):
+            nxt = (i + 1) % around
+            v0 = j * around + i
+            v1 = j * around + nxt
+            v2 = (j + 1) * around + nxt
+            v3 = (j + 1) * around + i
+            faces.append([v0, v1, v2])
+            faces.append([v0, v2, v3])
+    quads_v, quads_f, _axis = retopo_tube(vertices, np.asarray(faces, dtype=np.int32), n_rings=12, n_around=8)
+    span = quads_v.max(axis=0) - quads_v.min(axis=0)
+    if span[2] <= span[0] * 2 or len(quads_f) < 24 or quads_f.shape[1] != 4:
+        raise SystemExit(f"插件自测没有切出管子: span={span} faces={len(quads_f)}")
+    print(f"套了 {len(quads_f)} 个四边面")
 
 
 if __name__ == "__main__":
