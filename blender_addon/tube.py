@@ -371,32 +371,34 @@ def _extend_to_tips(vertices: np.ndarray, faces: np.ndarray, rings: list[np.ndar
     if len(rings) < 4:
         return rings
     rings = list(rings)
-    centers = np.array([ring.mean(axis=0) for ring in rings])
-    direction = centers[-1] - centers[0]
-    span = float(np.linalg.norm(direction))
-    if span < 1e-8:
-        return rings
-    direction = direction / span
-    step = float(np.median(np.linalg.norm(np.diff(centers, axis=0), axis=1)))
-    if step < 1e-8:
-        return rings
-    projection = vertices @ direction
-    normal, bitangent = _plane_basis(direction)
     count = len(rings[0])
 
     def radius_of(ring: np.ndarray) -> float:
         return float(np.mean(np.linalg.norm(ring - ring.mean(axis=0), axis=1)))
 
     def grow(forward: bool) -> None:
+        basis = None
         for _ in range(8):
             previous = rings[-1] if forward else rings[0]
-            origin = previous.mean(axis=0) + direction * step * (1.0 if forward else -1.0)
-            here = float(origin @ direction)
-            if forward and here > float(projection.max()) - 0.2 * step:
+            before = rings[-2] if forward else rings[1]
+            step_vec = previous.mean(axis=0) - before.mean(axis=0)
+            step = float(np.linalg.norm(step_vec))
+            if step < 1e-8:
                 return
-            if not forward and here < float(projection.min()) + 0.2 * step:
+            local = step_vec / step
+            origin = previous.mean(axis=0) + local * step
+            projection = vertices @ local
+            if float(origin @ local) > float(projection.max()) - 0.15 * step:
                 return
-            segments = _segment_hits(vertices, faces, origin, direction)
+            if basis is None:
+                basis = _plane_basis(local)
+            carried = basis[0] - local * float(basis[0] @ local)
+            if float(np.linalg.norm(carried)) < 1e-8:
+                basis = _plane_basis(local)
+            else:
+                carried = carried / np.linalg.norm(carried)
+                basis = (carried, np.cross(local, carried))
+            segments = _segment_hits(vertices, faces, origin, local)
             if len(_all_loops(segments, scale)) != 1:
                 return
             loop = _stitch_loop(segments, scale)
@@ -406,7 +408,7 @@ def _extend_to_tips(vertices: np.ndarray, faces: np.ndarray, rings: list[np.ndar
             previous_radius = radius_of(previous)
             if radius > previous_radius * 1.8 or radius < previous_radius * 0.45:
                 return
-            ring = _resample_ring(loop, origin, direction, normal, bitangent, count)
+            ring = _resample_ring(loop, origin, local, basis[0], basis[1], count)
             edges = np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)
             if float(edges.min()) < 0.35 * float(np.median(edges)) or _ring_is_tilted(previous, ring):
                 return
