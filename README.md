@@ -72,6 +72,16 @@ python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 
 圈数和每圈点数按模型粗细改。太细的手指可以把 `--around` 降到 12。
 
+不写方向时，顺着最长的那根切。身子旁边伸出一条胳膊，就会切到身子上。想要胳膊，告诉它方向：
+
+```bash
+python demo/tube_retopo.py 你的模型.obj --axis 1,0,0
+```
+
+`1,0,0` 是向右。向上用 `0,0,1`。
+
+![指定方向](docs/figures/12_aim.png)
+
 ## 在 Blender 里
 
 1. 安装 `release/retopo_flow_blender_addon_v1.0.0.zip`（和命令行是同一套切法）

@@ -133,6 +133,56 @@ def sculpt_curved() -> tuple[np.ndarray, np.ndarray]:
     return vertices_a, np.asarray(faces, dtype=np.int32)
 
 
+def sculpt_body() -> tuple[np.ndarray, np.ndarray]:
+    """A torso with one arm sticking out. The long direction is the torso, not the arm."""
+    torso_z = np.linspace(-0.9, 0.9, 36)
+    torso_r = 0.28
+    arm_x = np.linspace(0.22, 1.15, 28)
+    arm_r = 0.09
+    vertices = []
+    around = 16
+
+    def add_tube(centers: np.ndarray, radius: float) -> int:
+        base = len(vertices)
+        tangents = np.gradient(centers, axis=0)
+        tangents /= np.linalg.norm(tangents, axis=1, keepdims=True)
+        helper = np.array([0.0, 1.0, 0.0])
+        for center, tangent in zip(centers, tangents):
+            if abs(tangent[1]) > 0.9:
+                helper_local = np.array([1.0, 0.0, 0.0])
+            else:
+                helper_local = helper
+            side = np.cross(tangent, helper_local)
+            side /= np.linalg.norm(side)
+            up = np.cross(side, tangent)
+            for i in range(around):
+                theta = 2.0 * np.pi * i / around
+                vertices.append(center + radius * (np.cos(theta) * side + np.sin(theta) * up))
+        return base
+
+    torso = np.stack([np.zeros_like(torso_z), np.zeros_like(torso_z), torso_z], axis=1)
+    arm = np.stack([arm_x, np.zeros_like(arm_x), np.full_like(arm_x, 0.25)], axis=1)
+    torso_base = add_tube(torso, torso_r)
+    arm_base = add_tube(arm, arm_r)
+    vertices_a = np.asarray(vertices, dtype=np.float64)
+    faces = []
+
+    def add_faces(base: int, count: int) -> None:
+        for j in range(count - 1):
+            for i in range(around):
+                nxt = (i + 1) % around
+                v0 = base + j * around + i
+                v1 = base + j * around + nxt
+                v2 = base + (j + 1) * around + nxt
+                v3 = base + (j + 1) * around + i
+                faces.append([v0, v1, v2])
+                faces.append([v0, v2, v3])
+
+    add_faces(torso_base, len(torso))
+    add_faces(arm_base, len(arm))
+    return vertices_a, np.asarray(faces, dtype=np.int32)
+
+
 def sculpt_hose() -> tuple[np.ndarray, np.ndarray]:
     knots_z = np.array([-1.3, -0.4, -0.15, 0.0, 0.15, 0.5, 1.3])
     knots_r = np.array([0.11, 0.11, 0.16, 0.18, 0.16, 0.11, 0.11])
@@ -311,6 +361,7 @@ def main() -> None:
     parser.add_argument("--rings", type=int, default=26)
     parser.add_argument("--around", type=int, default=16)
     parser.add_argument("--bend", type=float, default=90.0)
+    parser.add_argument("--axis", type=str, default=None, help="例如 1,0,0，顺着这个方向切细的那根")
     parser.add_argument("--out", type=Path, default=None)
     parser.add_argument("--mesh-dir", type=Path, default=None)
     args = parser.parse_args()
@@ -378,6 +429,28 @@ def main() -> None:
         curve_fig.savefig(gallery.with_name("10_curved.png"), dpi=140, bbox_inches="tight", facecolor="white")
         plt.close(curve_fig)
         print(f"curved quads={len(curved_faces)}")
+        body_v, body_f = sculpt_body()
+        body_default, body_default_f, _ = retopo_tube(body_v, body_f, n_rings=18, n_around=12)
+        body_arm, body_arm_f, _ = retopo_tube(body_v, body_f, n_rings=18, n_around=12, axis=np.array([1.0, 0.0, 0.0]))
+        write_obj(args.mesh_dir / "body_sculpt.obj", body_v, body_f)
+        write_obj(args.mesh_dir / "body_auto.obj", body_default, body_default_f)
+        write_obj(args.mesh_dir / "body_arm.obj", body_arm, body_arm_f)
+        body_limits = bounds_of([body_v, body_default, body_arm], pad=0.08)
+        body_fig = plt.figure(figsize=(10.4, 4.2), facecolor="white")
+        for index, (verts, faces, edge, title) in enumerate(
+            (
+                (body_v, body_f, SCULPT_EDGE, "身子加一条胳膊"),
+                (body_default, body_default_f, QUAD_EDGE, "不指定，顺着身子切"),
+                (body_arm, body_arm_f, QUAD_EDGE, "指定向右，切胳膊"),
+            ),
+            start=1,
+        ):
+            ax = body_fig.add_subplot(1, 3, index, projection="3d")
+            _draw(ax, verts, faces, edge, title, body_limits)
+        body_fig.suptitle("想切哪根，就告诉它方向", fontsize=16)
+        body_fig.savefig(gallery.with_name("12_aim.png"), dpi=140, bbox_inches="tight", facecolor="white")
+        plt.close(body_fig)
+        print(f"body auto={len(body_default_f)} arm={len(body_arm_f)}")
         # Keep the arm preview the README already points at.
         arm = items[0]
         save_preview(arm[1], arm[2], arm[3], arm[4], args.out if args.out.name == "07_retopo.png" else gallery.with_name("07_retopo.png"))
@@ -401,7 +474,12 @@ def main() -> None:
         ring_path = mesh_dir / f"{args.mesh.stem}_rings.obj"
         bent_path = mesh_dir / f"{args.mesh.stem}_bent.obj"
 
-    quads_v, quads_f, _axis = retopo_tube(vertices, faces, n_rings=args.rings, n_around=args.around)
+    chosen_axis = None
+    if args.axis:
+        chosen_axis = np.array([float(part) for part in args.axis.split(",")], dtype=np.float64)
+    quads_v, quads_f, _axis = retopo_tube(
+        vertices, faces, n_rings=args.rings, n_around=args.around, axis=chosen_axis
+    )
     bent = bend_tube(quads_v, args.bend)
     save_preview((vertices, faces), quads_v, quads_f, bent, preview)
     write_obj(ring_path, quads_v, quads_f)

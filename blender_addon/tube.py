@@ -185,10 +185,133 @@ def _centerline(vertices: np.ndarray, n_rings: int) -> np.ndarray:
     return _resample_curve(polyline, n_rings)
 
 
-def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_around: int = 16) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _all_loops(segments: list[tuple[np.ndarray, np.ndarray]], scale: float) -> list[np.ndarray]:
+    if not segments:
+        return []
+    tol = max(scale * 1e-5, 1e-6)
+
+    def key(point: np.ndarray) -> tuple[int, int, int]:
+        return tuple(np.round(point / tol).astype(int))
+
+    points: dict[tuple[int, int, int], np.ndarray] = {}
+    neighbors: dict[tuple[int, int, int], list[tuple[int, int, int]]] = {}
+    unused: set[tuple[tuple[int, int, int], tuple[int, int, int]]] = set()
+    for start, end in segments:
+        ka, kb = key(start), key(end)
+        if ka == kb:
+            continue
+        points.setdefault(ka, start)
+        points.setdefault(kb, end)
+        neighbors.setdefault(ka, []).append(kb)
+        neighbors.setdefault(kb, []).append(ka)
+        unused.add((ka, kb) if ka < kb else (kb, ka))
+    loops = []
+    while unused:
+        start = next(iter(unused))[0]
+        loop = [start]
+        previous = None
+        current = start
+        for _ in range(len(points) + 2):
+            nxt = None
+            for candidate in neighbors.get(current, []):
+                edge = (current, candidate) if current < candidate else (candidate, current)
+                if candidate != previous and edge in unused:
+                    nxt = candidate
+                    unused.remove(edge)
+                    break
+            if nxt is None or nxt == start:
+                break
+            loop.append(nxt)
+            previous, current = current, nxt
+        if len(loop) >= 6:
+            loops.append(np.array([points[item] for item in loop], dtype=np.float64))
+    return loops
+
+
+def _loop_radius(loop: np.ndarray) -> float:
+    center = loop.mean(axis=0)
+    return float(np.mean(np.linalg.norm(loop - center, axis=1)))
+
+
+def _retopo_aimed(vertices: np.ndarray, faces: np.ndarray, axis: np.ndarray, n_rings: int, n_around: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Follow the thin limb in one direction and stop when the cut hits the body."""
+    axis = np.asarray(axis, dtype=np.float64)
+    axis = axis / np.linalg.norm(axis)
+    projection = vertices @ axis
+    low = vertices[int(np.argmin(projection))]
+    high = vertices[int(np.argmax(projection))]
+
+    def reach_of(point: np.ndarray) -> float:
+        distances = np.linalg.norm(vertices - point, axis=1)
+        return float(np.partition(distances, min(40, len(distances) - 1))[min(40, len(distances) - 1)])
+
+    if reach_of(low) <= reach_of(high):
+        tip = low
+        forward = axis
+    else:
+        tip = high
+        forward = -axis
+    length = float(projection.max() - projection.min())
+    step = length / max(n_rings * 2, 8)
+    scale = float(np.linalg.norm(vertices.max(axis=0) - vertices.min(axis=0)))
+    rings = []
+    normal = None
+    bitangent = None
+    tip_radius = None
+    origin = tip.copy()
+    for _ in range(n_rings * 3):
+        loops = _all_loops(_segment_hits(vertices, faces, origin, forward), scale)
+        if loops:
+            loop = min(loops, key=_loop_radius)
+            radius = _loop_radius(loop)
+            if tip_radius is None:
+                tip_radius = radius
+            elif radius > tip_radius * 2.4 and len(rings) >= 4:
+                break
+            if normal is None:
+                normal, bitangent = _plane_basis(forward)
+            else:
+                normal = normal - forward * float(normal @ forward)
+                norm = float(np.linalg.norm(normal))
+                if norm < 1e-8:
+                    normal, bitangent = _plane_basis(forward)
+                else:
+                    normal = normal / norm
+                    bitangent = np.cross(forward, normal)
+            ring = _resample_ring(loop, origin, forward, normal, bitangent, n_around)
+            edges = np.linalg.norm(np.roll(ring, -1, axis=0) - ring, axis=1)
+            if float(edges.min()) >= 0.35 * float(np.median(edges)):
+                rings.append(ring)
+            if len(rings) >= n_rings:
+                break
+        origin = origin + forward * step
+    if len(rings) < 4:
+        raise RuntimeError("这个方向上切不出一条细管子")
+    quads = []
+    count = n_around
+    for j in range(len(rings) - 1):
+        for i in range(count):
+            nxt = (i + 1) % count
+            v0 = j * count + i
+            v1 = j * count + nxt
+            v2 = (j + 1) * count + nxt
+            v3 = (j + 1) * count + i
+            pts = np.stack([rings[j][i], rings[j][nxt], rings[j + 1][nxt], rings[j + 1][i]])
+            face_normal = np.cross(pts[1] - pts[0], pts[2] - pts[0])
+            outward = pts.mean(axis=0) - 0.5 * (rings[j].mean(axis=0) + rings[j + 1].mean(axis=0))
+            if float(face_normal @ outward) < 0.0:
+                quads.append([v0, v3, v2, v1])
+            else:
+                quads.append([v0, v1, v2, v3])
+    return np.vstack(rings), np.asarray(quads, dtype=np.int32), forward
+
+
+def retopo_tube(vertices: np.ndarray, faces: np.ndarray, n_rings: int = 28, n_around: int = 16, axis: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Return quad vertices, quad faces, and a unit axis direction."""
     vertices = np.asarray(vertices, dtype=np.float64)
     faces = np.asarray(faces, dtype=np.int32)
+    if axis is not None:
+        return _retopo_aimed(vertices, faces, np.asarray(axis, dtype=np.float64), n_rings, n_around)
     centers = _centerline(vertices, n_rings)
     scale = float(np.linalg.norm(vertices.max(axis=0) - vertices.min(axis=0)))
     rings = []
