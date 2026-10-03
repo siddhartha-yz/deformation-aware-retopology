@@ -12,13 +12,13 @@ It does not load FlowRetopoDiT. Skinning weights are a distance softmax over joi
 """
 
 bl_info = {
-    "name": "RetopoFlow-AI: Deformation-Aware Quad Retopology",
-    "author": "Generative Modeling & Geometry Processing Research Team",
-    "version": (1, 0, 0),
+    "name": "环线重拓扑",
+    "author": "mesh retopo",
+    "version": (1, 1, 0),
     "blender": (4, 0, 0),
-    "location": "View3D > Sidebar > RetopoFlow-AI",
-    "description": "Analytic cylinder quad lattice from the mesh bounding box. Not a trained flow-matching model.",
-    "warning": "Builds a bounding-box cylinder. Does not run the DiT.",
+    "location": "View3D > Sidebar > 环线",
+    "description": "顺着细长模型套一圈圈四边面。不是神经网络。",
+    "warning": "分叉的身体切不好。",
     "doc_url": "https://github.com/siddhartha-yz/deformation-aware-retopology",
     "category": "Mesh",
 }
@@ -382,7 +382,7 @@ if RUNNING_IN_BLENDER:
             new_obj.select_set(True)
             context.view_layer.objects.active = new_obj
             
-            self.report({'INFO'}, f"Generated {metrics['face_count']} Quads (Q={metrics['quad_ratio']:.1f}%, V4={metrics['valence_4_pct']:.1f}%) in {dt_ms:.1f}ms")
+            self.report({'INFO'}, f"套了 {metrics['face_count']} 个四边面，用时 {dt_ms:.0f} 毫秒")
             return {'FINISHED'}
 
 
@@ -392,7 +392,7 @@ if RUNNING_IN_BLENDER:
         bl_idname = "FLOWRETOPO_PT_main_panel"
         bl_space_type = 'VIEW_3D'
         bl_region_type = 'UI'
-        bl_category = 'RetopoFlow-AI'
+        bl_category = '环线'
         
         def draw(self, context):
             layout = self.layout
@@ -474,7 +474,7 @@ def run_standalone_addon_test():
     print("=" * 85)
     
     print("\n[STEP 1] Validating bl_info Add-on Metadata...")
-    assert "name" in bl_info and "RetopoFlow-AI" in bl_info["name"]
+    assert "name" in bl_info and "环线" in bl_info["name"]
     assert bl_info["blender"] >= (4, 0, 0)
     assert bl_info["category"] == "Mesh"
     print(f"  Add-on Name:    {bl_info['name']}")

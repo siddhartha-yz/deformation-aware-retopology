@@ -95,7 +95,7 @@ python demo/tube_retopo.py 你的模型.obj --axis 1,0,0
 
 1. 安装 `release/retopo_flow_blender_addon_v1.0.0.zip`（和命令行是同一套切法）
 2. 选中模型
-3. 按 `N`，打开「环线重拓扑」
+3. 按 `N`，打开「环线」
 4. 「切哪根」选自动，或选 X / Y / Z
 5. 点「套上环线」
 
