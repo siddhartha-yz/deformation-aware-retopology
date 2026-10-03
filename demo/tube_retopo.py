@@ -335,6 +335,21 @@ def save_bend_gif(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
     frames[0].save(out, save_all=True, append_images=frames[1:], duration=80, loop=0, optimize=True)
 
 
+def save_bend_strip(vertices: np.ndarray, faces: np.ndarray, out: Path) -> None:
+    setup_font()
+    angles = [0, 45, 90, 120]
+    posed = [vertices if angle == 0 else bend_tube(vertices, angle) for angle in angles]
+    limits = bounds_of(posed, pad=0.08)
+    fig = plt.figure(figsize=(12.2, 4.4), facecolor="white")
+    for index, (angle, posed_verts) in enumerate(zip(angles, posed), start=1):
+        ax = fig.add_subplot(1, 4, index, projection="3d")
+        _draw(ax, posed_verts, faces, QUAD_EDGE, f"弯 {angle}°", limits)
+    fig.suptitle("套完之后可以这样弯", fontsize=16)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+
+
 def save_preview(sculpt, quads_v, quads_f, bent, out: Path) -> None:
     setup_font()
     limits = bounds_of([sculpt[0], quads_v, bent], pad=0.08)
@@ -492,12 +507,14 @@ def main() -> None:
         write_obj(mesh_dir / "sculpt_arm.obj", vertices, faces)
         ring_path = mesh_dir / "retopo_rings.obj"
         bent_path = mesh_dir / "retopo_bent.obj"
+        strip = figure_dir / "14_bend_strip.png" if args.out is None else preview.with_name("bend_strip.png")
     else:
         mesh_dir = args.mesh_dir or args.mesh.parent
         preview = args.out or mesh_dir / f"{args.mesh.stem}_preview.png"
         vertices, faces = read_obj(args.mesh)
         ring_path = mesh_dir / f"{args.mesh.stem}_rings.obj"
         bent_path = mesh_dir / f"{args.mesh.stem}_bent.obj"
+        strip = mesh_dir / f"{args.mesh.stem}_bend.png"
 
     chosen_axis = None
     if args.axis:
@@ -507,12 +524,14 @@ def main() -> None:
     )
     bent = bend_tube(quads_v, args.bend)
     save_preview((vertices, faces), quads_v, quads_f, bent, preview)
+    save_bend_strip(quads_v, quads_f, strip)
     write_obj(ring_path, quads_v, quads_f)
     write_obj(bent_path, bent, quads_f)
     print(f"三角面 {len(faces)} 个，套成四边面 {len(quads_f)} 个")
     print(ring_path)
     print(bent_path)
     print(preview)
+    print(strip)
 
 
 if __name__ == "__main__":

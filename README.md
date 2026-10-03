@@ -66,9 +66,14 @@ python demo/tube_retopo.py 你的模型.obj --rings 26 --around 16 --bend 90
 
 结果写在模型旁边，不会盖掉仓库里的例子：
 
-- `你的模型_preview.png`
+- `你的模型_preview.png` 高模、环线、弯一下
+- `你的模型_bend.png` 0°、45°、90°、120°
 - `你的模型_rings.obj`
 - `你的模型_bent.obj`
+
+内置胳膊的弯曲过程：
+
+![套完再弯四格](docs/figures/14_bend_strip.png)
 
 圈数和每圈点数按模型粗细改。太细的手指可以把 `--around` 降到 12。
 
