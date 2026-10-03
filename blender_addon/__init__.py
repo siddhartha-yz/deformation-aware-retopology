@@ -270,6 +270,16 @@ if RUNNING_IN_BLENDER:
             description="Auto-generate bone skinning vertex groups with LBS weights",
             default=True
         )
+        aim_axis: EnumProperty(
+            name="Aim",
+            items=[
+                ("AUTO", "自动，最长的一根", "Follow the longest piece"),
+                ("X", "向右 X", "Cut the limb along X"),
+                ("Y", "向前 Y", "Cut the limb along Y"),
+                ("Z", "向上 Z", "Cut the limb along Z"),
+            ],
+            default="AUTO",
+        )
         last_quad_ratio: FloatProperty(name="Quad Ratio", default=0.0)
         last_v4_pct: FloatProperty(name="Valence-4 %", default=0.0)
         last_time_ms: FloatProperty(name="Inference Time (ms)", default=0.0)
@@ -316,12 +326,14 @@ if RUNNING_IN_BLENDER:
                     break
                         
             t0 = time.perf_counter()
+            aim = {"X": (1.0, 0.0, 0.0), "Y": (0.0, 1.0, 0.0), "Z": (0.0, 0.0, 1.0)}.get(props.aim_axis)
             try:
                 verts, quads, direction = retopo_tube(
                     src_verts,
                     src_faces,
                     n_rings=props.target_rings,
                     n_around=props.radial_segments,
+                    axis=None if aim is None else np.array(aim, dtype=np.float64),
                 )
             except RuntimeError as exc:
                 self.report({'ERROR'}, str(exc))
@@ -396,6 +408,7 @@ if RUNNING_IN_BLENDER:
                 
             box_res = layout.box()
             box_res.label(text="沿最长的方向切环", icon='MOD_REMESH')
+            box_res.prop(props, "aim_axis", text="切哪根")
             box_res.prop(props, "target_rings", text="圈数")
             box_res.prop(props, "radial_segments", text="每圈几点")
             box_res.prop(props, "bind_skinning", text="顺便写两根骨头的权重")
