@@ -312,20 +312,39 @@ def save_gallery(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarra
     plt.close(fig)
 
 
+def _middle_faces(vertices: np.ndarray, faces: np.ndarray, fraction: float = 0.34) -> np.ndarray:
+    """Keep a run of whole rings around the middle, so the crop does not slice a ring in half."""
+    first = [int(index) for index in faces[0]]
+    gaps = [abs(a - b) for a, b in zip(first, first[1:] + first[:1])]
+    around = max(gaps)
+    if around < 3 or len(vertices) % around != 0:
+        return np.asarray(faces)
+    n_rings = len(vertices) // around
+    keep_rings = max(4, int(round(n_rings * fraction)))
+    start = max(0, (n_rings - keep_rings) // 2)
+    stop = min(n_rings, start + keep_rings)
+    keep = []
+    for face in faces:
+        rings = [int(index) // around for index in face]
+        if min(rings) >= start and max(rings) < stop:
+            keep.append(face)
+    if len(keep) < 4:
+        return np.asarray(faces)
+    return np.asarray(keep, dtype=np.int32)
+
+
 def save_loop_closeup(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarray]], out: Path) -> None:
     setup_font()
-    fig = plt.figure(figsize=(10.8, 4.2), facecolor="white")
-    for index, (name, _sculpt, quads_v, quads_f, _bent) in enumerate(items, start=1):
-        upright = stand_up(quads_v)
-        band = np.abs(upright[:, 2]) < 0.28 * max(np.ptp(upright[:, 2]), 1e-6)
-        if int(band.sum()) < 12:
-            band = np.ones(len(upright), dtype=bool)
-        limits = bounds_of([upright[band]], pad=0.03)
-        ax = fig.add_subplot(1, len(items), index, projection="3d")
-        _draw(ax, upright, quads_f, QUAD_EDGE, f"{name}的环", limits, elev=8, azim=-90, linewidth=0.7)
+    fig, axes = plt.subplots(1, len(items), figsize=(11.2, 5.2), facecolor="white")
+    for ax, (name, _sculpt, quads_v, quads_f, _bent) in zip(axes, items):
+        center, rotation = _upright_frame(quads_v)
+        upright = (quads_v - center) @ rotation.T
+        band = _middle_faces(upright, quads_f)
+        _draw_side(ax, upright, band, upright, band, f"{name}的环")
     fig.suptitle("套完之后，边是一圈一圈绕过去的", fontsize=16)
+    fig.subplots_adjust(top=0.78, wspace=0.35)
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=140, bbox_inches="tight", facecolor="white")
+    fig.savefig(out, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
 
@@ -483,21 +502,11 @@ def main() -> None:
         gallery = args.out if args.out.name != "07_retopo.png" else args.out.with_name("08_shapes.png")
         save_gallery(items, gallery)
         save_loop_closeup(items, gallery.with_name("09_loops.png"))
-        arm_up = stand_up(items[0][2])
-        elbow = np.abs(arm_up[:, 2]) < 0.22 * max(float(np.ptp(arm_up[:, 2])), 1e-6)
-        close = plt.figure(figsize=(6.4, 7.2), facecolor="white")
-        ax = close.add_subplot(1, 1, 1, projection="3d")
-        _draw(
-            ax,
-            arm_up,
-            items[0][3],
-            QUAD_EDGE,
-            "胳膊肘这一段",
-            bounds_of([arm_up[elbow]], pad=0.02),
-            elev=8,
-            azim=-90,
-            linewidth=1.1,
-        )
+        arm_center, arm_rotation = _upright_frame(items[0][2])
+        arm_up = (items[0][2] - arm_center) @ arm_rotation.T
+        elbow_faces = _middle_faces(arm_up, items[0][3], fraction=0.28)
+        close, ax = plt.subplots(figsize=(4.2, 6.4), facecolor="white", constrained_layout=True)
+        _draw_side(ax, arm_up, elbow_faces, arm_up, elbow_faces, "胳膊肘这一段")
         close.savefig(gallery.with_name("11_arm_close.png"), dpi=160, bbox_inches="tight", facecolor="white")
         plt.close(close)
         save_bend_gif(items[0][2], items[0][3], gallery.with_name("retopo_bend.gif"))
