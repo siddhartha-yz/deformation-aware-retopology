@@ -274,9 +274,12 @@ if RUNNING_IN_BLENDER:
             name="Aim",
             items=[
                 ("AUTO", "自动，最长的一根", "Follow the longest piece"),
-                ("X", "向右 X", "Cut the limb along X"),
-                ("Y", "向前 Y", "Cut the limb along Y"),
-                ("Z", "向上 Z", "Cut the limb along Z"),
+                ("X", "向右 +X", "Cut the limb pointing +X"),
+                ("NX", "向左 -X", "Cut the limb pointing -X"),
+                ("Y", "向前 +Y", "Cut the limb pointing +Y"),
+                ("NY", "向后 -Y", "Cut the limb pointing -Y"),
+                ("Z", "向上 +Z", "Cut the limb pointing +Z"),
+                ("NZ", "向下 -Z", "Cut the limb pointing -Z"),
             ],
             default="AUTO",
         )
@@ -326,7 +329,14 @@ if RUNNING_IN_BLENDER:
                     break
                         
             t0 = time.perf_counter()
-            aim = {"X": (1.0, 0.0, 0.0), "Y": (0.0, 1.0, 0.0), "Z": (0.0, 0.0, 1.0)}.get(props.aim_axis)
+            aim = {
+                "X": (1.0, 0.0, 0.0),
+                "NX": (-1.0, 0.0, 0.0),
+                "Y": (0.0, 1.0, 0.0),
+                "NY": (0.0, -1.0, 0.0),
+                "Z": (0.0, 0.0, 1.0),
+                "NZ": (0.0, 0.0, -1.0),
+            }.get(props.aim_axis)
             try:
                 verts, quads, direction = retopo_tube(
                     src_verts,
