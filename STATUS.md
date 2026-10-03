@@ -1,5 +1,7 @@
 # Status
 
+The pictures on the front page are the part meant for people: `python demo/armbend.py`. This file is the research record.
+
 **Verdict: NO-GO** on the empirical claim that a trained kinematic flow-matching model beats QuadriFlow and MeshGPT at deformation-aware quad retopology.
 
 Date: 2026-10-03. This file is the current scientific record. Phase reports under `runs/latest/` are archival logs from the first pass. They are kept so the failed claim stays visible. They are not the verdict.

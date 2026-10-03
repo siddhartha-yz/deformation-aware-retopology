@@ -43,6 +43,9 @@ jobs:
           test -f release/retopo_flow_blender_addon_v1.0.0.zip
           test -f release/SHA256SUMS.txt
 
+      - name: Arm bend demo smoke test
+        run: python demo/armbend.py --quick --out /tmp/armbend
+
       - name: Oracle edge-orientation test
         run: python experiments/oracle_edge_orientation.py
 
