@@ -163,13 +163,21 @@ def sculpt_arm() -> tuple[np.ndarray, np.ndarray]:
 def bend_tube(vertices: np.ndarray, angle_deg: float, skin_delta: float = 0.12) -> np.ndarray:
     center, direction = long_axis(vertices)
     along = (vertices - center) @ direction
-    weights = sigmoid_weights(-along, skin_delta * float(np.ptp(along)))
+    # Hinge sits on the tube. Nearby points give the local direction, so a
+    # curve bends at the joint instead of twisting around the chord.
+    pivot = vertices[int(np.argmin(np.abs(along - np.median(along))))]
+    near = vertices[np.linalg.norm(vertices - pivot, axis=1) < 0.22 * max(float(np.ptp(along)), 1e-6)]
+    if len(near) >= 8:
+        _, axes = np.linalg.eigh(np.cov((near - near.mean(axis=0)).T))
+        direction = axes[:, -1]
+        direction = direction / np.linalg.norm(direction)
+    local = (vertices - pivot) @ direction
+    weights = sigmoid_weights(-local, skin_delta * float(np.ptp(local)))
     helper = np.array([1.0, 0.0, 0.0]) if abs(direction[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
     hinge = np.cross(direction, helper)
     hinge = hinge / np.linalg.norm(hinge)
     theta = np.radians(angle_deg)
     cosine, sine = np.cos(theta), np.sin(theta)
-    # Rodrigues rotation about the hinge through the mesh center.
     rotation = (
         cosine * np.eye(3)
         + sine * np.array(
@@ -181,9 +189,8 @@ def bend_tube(vertices: np.ndarray, angle_deg: float, skin_delta: float = 0.12) 
         )
         + (1.0 - cosine) * np.outer(hinge, hinge)
     )
-    moved = (vertices - center) @ rotation.T + center
-    blended = (1.0 - weights[:, 1:2]) * vertices + weights[:, 1:2] * moved
-    return blended
+    moved = (vertices - pivot) @ rotation.T + pivot
+    return (1.0 - weights[:, 1:2]) * vertices + weights[:, 1:2] * moved
 
 
 def stand_up(vertices: np.ndarray) -> np.ndarray:
@@ -334,7 +341,21 @@ def main() -> None:
         write_obj(args.mesh_dir / "curved_sculpt.obj", curved_v, curved_f)
         write_obj(args.mesh_dir / "curved_rings.obj", curved_q, curved_faces)
         write_obj(args.mesh_dir / "curved_bent.obj", curved_bent, curved_faces)
-        save_preview((curved_v, curved_f), curved_q, curved_faces, curved_bent, gallery.with_name("10_curved.png"))
+        setup_font()
+        curve_limits = bounds_of([curved_v, curved_q], pad=0.06)
+        curve_fig = plt.figure(figsize=(8.2, 4.2), facecolor="white")
+        for index, (verts, faces, edge, title) in enumerate(
+            (
+                (curved_v, curved_f, SCULPT_EDGE, "本来就是弯的"),
+                (curved_q, curved_faces, QUAD_EDGE, "环顺着弯走"),
+            ),
+            start=1,
+        ):
+            ax = curve_fig.add_subplot(1, 2, index, projection="3d")
+            _draw(ax, verts, faces, edge, title, curve_limits)
+        curve_fig.suptitle("不用把它扳直再套环", fontsize=16)
+        curve_fig.savefig(gallery.with_name("10_curved.png"), dpi=140, bbox_inches="tight", facecolor="white")
+        plt.close(curve_fig)
         print(f"curved quads={len(curved_faces)}")
         # Keep the arm preview the README already points at.
         arm = items[0]
