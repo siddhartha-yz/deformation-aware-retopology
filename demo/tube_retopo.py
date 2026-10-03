@@ -558,7 +558,7 @@ def main() -> None:
         body_fig, body_axes = plt.subplots(1, 2, figsize=(8.6, 7.2), facecolor="white")
 
         def _flat(points):
-            return np.column_stack([points[:, 0] + 0.35 * points[:, 1], points[:, 2] + 0.18 * points[:, 1]])
+            return np.column_stack([points[:, 0], points[:, 2]])
 
         body_xy = _flat(body_v)
         body_order = np.argsort(body_v[body_f].mean(axis=1)[:, 1])

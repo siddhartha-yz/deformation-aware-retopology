@@ -304,11 +304,18 @@ def _straight_rings(vertices: np.ndarray, faces: np.ndarray, origins: list[np.nd
     if len(origins) < 4:
         return None
     points = np.asarray(origins, dtype=np.float64)
-    direction = points[-1] - points[0]
-    length = float(np.linalg.norm(direction))
+    _, _, axes = np.linalg.svd(points - points.mean(axis=0), full_matrices=False)
+    direction = axes[0]
+    if float(direction @ (points[-1] - points[0])) < 0.0:
+        direction = -direction
+    dominant = int(np.argmax(np.abs(direction)))
+    if abs(float(direction[dominant])) > 0.92:
+        snapped = np.zeros(3, dtype=np.float64)
+        snapped[dominant] = 1.0 if direction[dominant] > 0.0 else -1.0
+        direction = snapped
+    length = float(np.linalg.norm(points[-1] - points[0]))
     if length < 1e-8:
         return None
-    direction = direction / length
     step = length / max(len(points) - 1, 1)
     normal, bitangent = _plane_basis(direction)
     rebuilt = []
