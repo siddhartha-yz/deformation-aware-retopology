@@ -511,19 +511,18 @@ def main() -> None:
         write_obj(args.mesh_dir / "curved_rings.obj", curved_q, curved_faces)
         write_obj(args.mesh_dir / "curved_bent.obj", curved_bent, curved_faces)
         setup_font()
-        curve_limits = bounds_of([curved_v, curved_q], pad=0.06)
-        curve_fig = plt.figure(figsize=(8.2, 4.2), facecolor="white")
-        for index, (verts, faces, edge, title) in enumerate(
-            (
-                (curved_v, curved_f, SCULPT_EDGE, f"本来就是弯的 · {len(curved_f)} 个三角面"),
-                (curved_q, curved_faces, QUAD_EDGE, f"环顺着弯走 · {len(curved_faces)} 个四边面"),
-            ),
-            start=1,
-        ):
-            ax = curve_fig.add_subplot(1, 2, index, projection="3d")
-            _draw(ax, verts, faces, edge, title, curve_limits)
+        center, rotation = _upright_frame(curved_q)
+        curve_fig, ax = plt.subplots(figsize=(5.4, 7.4), facecolor="white", constrained_layout=True)
+        _draw_side(
+            ax,
+            (curved_v - center) @ rotation.T,
+            curved_f,
+            (curved_q - center) @ rotation.T,
+            curved_faces,
+            f"环顺着弯走 · {len(curved_faces)} 个四边面",
+        )
         curve_fig.suptitle("不用把它扳直再套环", fontsize=16)
-        curve_fig.savefig(gallery.with_name("10_curved.png"), dpi=140, bbox_inches="tight", facecolor="white")
+        curve_fig.savefig(gallery.with_name("10_curved.png"), dpi=150, bbox_inches="tight", facecolor="white")
         plt.close(curve_fig)
         print(f"curved quads={len(curved_faces)}")
         body_v, body_f = sculpt_body()
