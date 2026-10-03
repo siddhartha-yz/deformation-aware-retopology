@@ -154,9 +154,13 @@ if RUNNING_IN_BLENDER:
             mesh_name = f"{active_obj.name}_Retopo"
             new_mesh = bpy.data.meshes.new(mesh_name)
             new_mesh.from_pydata(verts.tolist(), [], quads.tolist())
+            for poly in new_mesh.polygons:
+                poly.use_smooth = True
             new_mesh.update()
             
             new_obj = bpy.data.objects.new(mesh_name, new_mesh)
+            new_obj.show_wire = True
+            new_obj.show_all_edges = True
             context.collection.objects.link(new_obj)
             
             if props.bind_skinning and armature_obj:
