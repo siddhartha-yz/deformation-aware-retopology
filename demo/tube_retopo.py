@@ -236,8 +236,8 @@ def save_gallery(items: list[tuple[str, tuple, np.ndarray, np.ndarray, np.ndarra
     for row, (name, sculpt, quads_v, quads_f, bent) in enumerate(items):
         limits = bounds_of([sculpt[0], quads_v, bent], pad=0.06)
         panels = (
-            (sculpt[0], sculpt[1], SCULPT_EDGE, f"{name} · 高模"),
-            (quads_v, quads_f, QUAD_EDGE, "环线"),
+            (sculpt[0], sculpt[1], SCULPT_EDGE, f"{name} · {len(sculpt[1])} 个三角面"),
+            (quads_v, quads_f, QUAD_EDGE, f"{len(quads_f)} 个四边面"),
             (bent, quads_f, QUAD_EDGE, "弯 90°"),
         )
         for col, (verts, faces, edge, title) in enumerate(panels):
@@ -290,8 +290,8 @@ def save_preview(sculpt, quads_v, quads_f, bent, out: Path) -> None:
     limits = bounds_of([sculpt[0], quads_v, bent], pad=0.08)
     fig = plt.figure(figsize=(11.4, 4.4), facecolor="white")
     panels = (
-        (sculpt[0], sculpt[1], SCULPT_EDGE, "高模"),
-        (quads_v, quads_f, QUAD_EDGE, "套上环线"),
+        (sculpt[0], sculpt[1], SCULPT_EDGE, f"高模 · {len(sculpt[1])} 个三角面"),
+        (quads_v, quads_f, QUAD_EDGE, f"环线 · {len(quads_f)} 个四边面"),
         (bent, quads_f, QUAD_EDGE, "再弯 90°"),
     )
     for index, (verts, faces, edge, title) in enumerate(panels, start=1):
@@ -346,8 +346,8 @@ def main() -> None:
         curve_fig = plt.figure(figsize=(8.2, 4.2), facecolor="white")
         for index, (verts, faces, edge, title) in enumerate(
             (
-                (curved_v, curved_f, SCULPT_EDGE, "本来就是弯的"),
-                (curved_q, curved_faces, QUAD_EDGE, "环顺着弯走"),
+                (curved_v, curved_f, SCULPT_EDGE, f"本来就是弯的 · {len(curved_f)} 个三角面"),
+                (curved_q, curved_faces, QUAD_EDGE, f"环顺着弯走 · {len(curved_faces)} 个四边面"),
             ),
             start=1,
         ):
@@ -377,7 +377,7 @@ def main() -> None:
     save_preview((vertices, faces), quads_v, quads_f, bent, args.out)
     write_obj(args.mesh_dir / "retopo_rings.obj", quads_v, quads_f)
     write_obj(args.mesh_dir / "retopo_bent.obj", bent, quads_f)
-    print(f"quads={len(quads_f)} verts={len(quads_v)}")
+    print(f"三角面 {len(faces)} 个，套成四边面 {len(quads_f)} 个")
     print(args.out)
 
 
